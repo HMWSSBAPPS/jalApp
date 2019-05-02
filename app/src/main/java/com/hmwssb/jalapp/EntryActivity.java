@@ -49,6 +49,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.Window;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -90,12 +91,12 @@ public class EntryActivity extends Activity implements OnClickListener {
     File mediaStorageDir;
     int hit_index = 0;
     String locationAddress = "";
-//    Spinner rcvalue;
-//    EditText canno;
+    Spinner rcvalue;
+    EditText canno;
     private IntentFilter mIntentFilter;
     private static final int PERMISSION_REQUEST_CODE = 200;
     public static final int MEDIA_TYPE_IMAGE = 1;
-    String imagetemp, mImageStr;
+    String imagetemp, mImageStr ,selectedItem;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,8 +115,8 @@ public class EntryActivity extends Activity implements OnClickListener {
         mIntentFilter.addAction(ZipprGPSService.BROADCAST_ACTION);
         registerReceiver(broadcastReceiver, mIntentFilter);
         tv_title = (TextView) findViewById(R.id.tv_title);
-//        rcvalue = findViewById(R.id.rcvalue);
-//        canno = findViewById(R.id.canno);
+        rcvalue = findViewById(R.id.rcvalue);
+        canno = findViewById(R.id.canno);
 
         ll_meter = (LinearLayout) findViewById(R.id.ll_meter);
         et_meter_can_no = (EditText) findViewById(R.id.et_meter_can_no);
@@ -206,10 +207,20 @@ public class EntryActivity extends Activity implements OnClickListener {
                 "COLOR")));
 
         if (index.trim().equalsIgnoreCase("0")) {
-
             btn_image.setVisibility(View.VISIBLE);
-//            rcvalue.setVisibility(View.VISIBLE);
-//            canno.setVisibility(View.VISIBLE);
+            rcvalue.setVisibility(View.VISIBLE);
+            canno.setVisibility(View.VISIBLE);
+            rcvalue.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    selectedItem = parent.getItemAtPosition(position).toString();
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+
+                }
+            });
         } else if (index.trim().equalsIgnoreCase("1")) {
             btn_image.setVisibility(View.VISIBLE);
 
@@ -253,8 +264,8 @@ public class EntryActivity extends Activity implements OnClickListener {
 
         if (v == btn_submit) {
             if (index.trim().equalsIgnoreCase("0")) {
-                Helper.showShortToast(EntryActivity.this,
-                        "This is Chlorine...");
+//                Helper.showShortToast(EntryActivity.this,
+//                        "This is Chlorine...");
                 if (iv_img.getVisibility() == View.GONE) {
                     Helper.showShortToast(EntryActivity.this,
                             "Please capture image");
@@ -262,7 +273,13 @@ public class EntryActivity extends Activity implements OnClickListener {
                     btn_image.requestFocusFromTouch();
                 } else {
                     if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                        new GetSection().execute("Lat^Long");
+                        if (canno.getText().toString()!=null && !canno.getText().toString().trim().equalsIgnoreCase("")){
+                            new GetSection().execute("Lat^Long");
+                        }else {
+                            Helper.showShortToast(EntryActivity.this,
+                                    "Please Enter Can Number...");
+                        }
+
                     } else {
                         Helper.showShortToast(EntryActivity.this,
                                 "Please check your internet connection...");
@@ -473,7 +490,7 @@ public class EntryActivity extends Activity implements OnClickListener {
                                 linemanID,
                                 gps_data.substring(0, gps_data.indexOf("-")),
                                 gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
+                                locationAddress,canno.getText().toString(),selectedItem};
                     } else {
                         VALUE = new String[]{
                                 section_code,
@@ -484,7 +501,7 @@ public class EntryActivity extends Activity implements OnClickListener {
                                 linemanID,
                                 gps_data.substring(0, gps_data.indexOf("-")),
                                 gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
+                                locationAddress,canno.getText().toString(),selectedItem};
                     }
                     SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
                             + Helper.SaveChlorinationLineManApp;
@@ -989,7 +1006,7 @@ public class EntryActivity extends Activity implements OnClickListener {
                 // sendBroadcast(poke);
 
                 startActivity(new Intent(
-                        android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                        Settings.ACTION_LOCATION_SOURCE_SETTINGS));
             }
         } catch (Exception ex) {
 
@@ -1084,8 +1101,8 @@ public class EntryActivity extends Activity implements OnClickListener {
 
         // External sdcard location
 
-        Boolean isSDPresent = android.os.Environment.getExternalStorageState()
-                .equals(android.os.Environment.MEDIA_MOUNTED);
+        Boolean isSDPresent = Environment.getExternalStorageState()
+                .equals(Environment.MEDIA_MOUNTED);
 
         if (isSDPresent) {
             mediaStorageDir = new File(Environment
@@ -1206,7 +1223,7 @@ public class EntryActivity extends Activity implements OnClickListener {
                 if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
                     hit_index = 1;
                     new SubmitData()
-                            .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^address");
+                            .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^addressLocation^Can^RCValue");
                 } else {
                     Helper.showShortToast(EntryActivity.this,
                             "Please check your internet connection...");

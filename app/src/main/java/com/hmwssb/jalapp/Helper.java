@@ -73,7 +73,8 @@ public class Helper {
     public static String URL1 = "http://65.19.149.210/RMCTrade/RMC_Trade.asmx?WSDL";
 
     // Testing url
-       public static String SUBMIT_URL = "https://test.hyderabadwater.gov.in:9235/CTL/ERP/EIF/CommonService/IL/ILineManAppCodeTreeUC?WSDL";
+//       public static String SUBMIT_URL = "https://test.hyderabadwater.gov.in:9235/CTL/ERP/EIF/CommonService/IL/ILineManAppCodeTreeUC?WSDL";
+       public static String SUBMIT_URL = "https://test3.hyderabadwater.gov.in:8235/CTL/ERP/EIF/CommonService/IL/ILineManAppCodeTreeUC?WSDL";
 
     // Live url
 //    public static String SUBMIT_URL = "https://erp.hyderabadwater.gov.in:91/CTL/ERP/EIF/CommonService/IL/ILineManAppCodeTreeUC?wsdl";

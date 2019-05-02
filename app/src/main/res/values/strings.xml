@@ -7,7 +7,6 @@
     <string name="app_name_version">JAL APP  V.2.0</string>
     <string name="title_activity_maps">Map</string>
     <string-array name="rcvalue">
-        <item>Select Rc Value</item>
         <item>Nil</item>
         <item>0</item>
         <item>0.1</item>
