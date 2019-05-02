@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content" >
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="165dp"
+        android:orientation="horizontal" >
+
+        <LinearLayout
+            android:id="@+id/ll_left_main"
+            android:layout_width="match_parent"
+            android:layout_height="165dp"
+            android:layout_marginBottom="5dp"
+            android:layout_marginRight="5dp"
+            android:layout_weight="0.33"
+            android:gravity="center_vertical"
+            android:orientation="vertical" >
+
+            <TextView
+                android:id="@+id/tv_sno_left"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_gravity="center|left"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="5dp"
+                android:background="@drawable/tv_bg_round_big"
+                android:gravity="center"
+                android:text="1"
+                android:textColor="#ffffff"
+                android:textSize="14dp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/img_left"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_gravity="center"
+                android:layout_marginBottom="3dp"
+                android:src="@drawable/no_chlorine" />
+
+            <TextView
+                android:id="@+id/tv_left"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:singleLine="false"
+                android:text="NO \nCHLORINE"
+                android:textColor="@color/app_color"
+                android:textSize="14dp"
+                android:textStyle="bold|italic" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_middle_main"
+            android:layout_width="match_parent"
+            android:layout_height="165dp"
+            android:layout_marginBottom="5dp"
+            android:layout_weight="0.33"
+            android:gravity="center_vertical"
+            android:orientation="vertical" >
+
+            <TextView
+                android:id="@+id/tv_sno_middle"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_gravity="center|left"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="5dp"
+                android:background="@drawable/tv_bg_round_big"
+                android:gravity="center"
+                android:text="2"
+                android:textColor="#ffffff"
+                android:textSize="14dp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/img_middle"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_gravity="center"
+                android:layout_marginBottom="3dp"
+                android:src="@drawable/valve_leakage" />
+
+            <TextView
+                android:id="@+id/tv_middle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:singleLine="false"
+                android:text="VALVE \nLEAKAGE"
+                android:textColor="@color/app_color"
+                android:textSize="14dp"
+                android:textStyle="bold|italic" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_right_main"
+            android:layout_width="match_parent"
+            android:layout_height="165dp"
+            android:layout_marginBottom="5dp"
+            android:layout_marginLeft="5dp"
+            android:layout_weight="0.33"
+            android:gravity="center_vertical"
+            android:orientation="vertical" >
+
+            <TextView
+                android:id="@+id/tv_sno_right"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_gravity="center|left"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="5dp"
+                android:background="@drawable/tv_bg_round_big"
+                android:gravity="center"
+                android:text="3"
+                android:textColor="#ffffff"
+                android:textSize="14dp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/img_right"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_gravity="center"
+                android:layout_marginBottom="3dp"
+                android:src="@drawable/pipe_leakage" />
+
+            <TextView
+                android:id="@+id/tv_right"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:singleLine="false"
+                android:text="WATER SUPPLY LEAKAGE"
+                android:textColor="@color/app_color"
+                android:textSize="14dp"
+                android:textStyle="bold|italic" />
+        </LinearLayout>
+    </LinearLayout>
+
+</RelativeLayout>

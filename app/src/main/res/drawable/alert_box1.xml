@@ -1,0 +1,20 @@
+<shape xmlns:android="http://schemas.android.com/apk/res/android" >
+
+   
+
+    <solid android:color="#9B9C9C" />
+
+    <padding
+        android:bottom="5sp"
+        android:left="5sp"
+        android:right="5sp"
+        android:top="5sp" />
+
+    <stroke
+        android:dashGap="1dp"
+        android:width="1.5dp"
+        android:color="#000000" />
+
+    <corners android:radius="0px" />
+
+</shape>

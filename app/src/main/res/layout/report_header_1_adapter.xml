@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/layout_corners2"
+    android:orientation="horizontal" >
+
+    <TextView
+        android:id="@+id/tv_valve_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_margin="10dp"
+        android:layout_weight="1"
+        android:text="Valve Name(Main/Operating)"
+        android:textColor="#623A3D"
+        android:textSize="14dp"
+        android:textStyle="bold" />
+
+    <ImageView
+        android:id="@+id/report_img"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_gravity="center"
+        android:layout_margin="10dp"
+        android:src="@drawable/valve_close" />
+
+</LinearLayout>

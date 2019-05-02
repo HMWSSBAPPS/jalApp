@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/layout_corners_1"
+    android:orientation="horizontal" >
+
+    <RelativeLayout
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_gravity="center_vertical"
+        android:layout_margin="5dp"
+        android:background="@drawable/bg_round_big" >
+
+        <TextView
+            android:id="@+id/tv_personal_exapand"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="+"
+            android:textColor="#ffffff"
+            android:textSize="14dp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <TextView
+        android:id="@+id/tv_lineman_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_margin="10dp"
+        android:layout_weight="1"
+        android:text="NAME"
+        android:textColor="#623A3D"
+        android:textSize="14dp"
+        android:textStyle="bold" />
+
+    <Button
+        android:id="@+id/btn_show_map"
+        android:layout_width="50dp"
+        android:layout_height="30dp"
+        android:layout_gravity="center"
+        android:layout_margin="10dp"
+        android:background="@drawable/btn_corners"
+        android:text="Map"
+        android:textColor="#ffffff"
+        android:textSize="12dp"
+        android:textStyle="bold" />
+
+</LinearLayout>
