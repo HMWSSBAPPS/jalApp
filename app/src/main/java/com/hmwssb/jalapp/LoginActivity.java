@@ -1,5 +1,6 @@
 package com.hmwssb.jalapp;
 
+import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -46,7 +47,12 @@ import java.io.File;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 
+import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
+import static android.Manifest.permission.ACCESS_FINE_LOCATION;
+import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
 import static android.Manifest.permission.READ_PHONE_STATE;
+import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
+import static android.Manifest.permission_group.CAMERA;
 
 public class LoginActivity extends Activity implements OnClickListener, SMSReceiver.OTPReceiveListener {
 
@@ -429,35 +435,6 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
                         .trim().length() > 0) {
                     img = subSPlit[15].substring(subSPlit[15].indexOf("=") + 1)
                             .trim();
-                    // try {
-                    // StrictMode.ThreadPolicy policy = new
-                    // StrictMode.ThreadPolicy.Builder()
-                    // .permitAll().build();
-                    // StrictMode.setThreadPolicy(policy);
-                    // img = subSPlit[16].substring(
-                    // subSPlit[16].indexOf("=") + 1).trim();
-                    // URL aURL = new URL(img);
-                    // URLConnection conn = aURL.openConnection();
-                    // conn.connect();
-                    // InputStream is = conn.getInputStream();
-                    // BufferedInputStream bis = new BufferedInputStream(is);
-                    // Bitmap bm = BitmapFactory.decodeStream(bis);
-                    // File f = getOutputMediaFile(subSPlit[2].substring(
-                    // subSPlit[2].indexOf("=") + 1).trim()
-                    // + "-"
-                    // + subSPlit[3].substring(
-                    // subSPlit[3].indexOf("=") + 1).trim());
-                    // FileOutputStream fos = null;
-                    // fos = new FileOutputStream(f);
-                    // bm.compress(Bitmap.CompressFormat.PNG, 70, fos);
-                    // bis.close();
-                    // fos.close();
-                    // is.close();
-                    // img = f.getPath();
-                    // } catch (Exception e) {
-                    // img = "0";
-                    // e.printStackTrace();
-                    // }
                 }
                 DBHelper.insertintoTable(
                         LoginActivity.this,
@@ -700,58 +677,74 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
         super.onDestroy();
     }
 
-    /*Method used to check the runtime permissions for device id and read sms*/
-    private boolean checkPermission() {
-        int result = ContextCompat.checkSelfPermission(getApplicationContext(), READ_PHONE_STATE);
 
-        return result == PackageManager.PERMISSION_GRANTED;
+    public boolean checkPermission() {
+        int FINELOCATION = ContextCompat.checkSelfPermission(getApplicationContext(), ACCESS_FINE_LOCATION);
+        int COARSELOCATION = ContextCompat.checkSelfPermission(getApplicationContext(), ACCESS_COARSE_LOCATION);
+        int CAMERA = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA);
+        int READSTORAGE = ContextCompat.checkSelfPermission(getApplicationContext(), READ_EXTERNAL_STORAGE);
+        int WRITESTORAGE = ContextCompat.checkSelfPermission(getApplicationContext(), WRITE_EXTERNAL_STORAGE);
+        int READPHONE = ContextCompat.checkSelfPermission(getApplicationContext(), WRITE_EXTERNAL_STORAGE);
+
+
+        return FINELOCATION == PackageManager.PERMISSION_GRANTED && COARSELOCATION == PackageManager.PERMISSION_GRANTED && READSTORAGE == PackageManager.PERMISSION_GRANTED && WRITESTORAGE == PackageManager.PERMISSION_GRANTED && CAMERA == PackageManager.PERMISSION_GRANTED && READPHONE == PackageManager.PERMISSION_GRANTED;
+
     }
 
-    /*Requesting for the required permissions*/
-    private void requestPermission() {
-        ActivityCompat.requestPermissions(this, new String[]{READ_PHONE_STATE}, PERMISSION_REQUEST_CODE);
+    public void requestPermission() {
+
+        ActivityCompat.requestPermissions(LoginActivity.this, new String[]{ACCESS_FINE_LOCATION, READ_PHONE_STATE, ACCESS_COARSE_LOCATION, Manifest.permission.CAMERA, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
+
+
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
         switch (requestCode) {
             case PERMISSION_REQUEST_CODE:
                 if (grantResults.length > 0) {
-                    boolean readPhoneStateAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED;
-                    if (readPhoneStateAccepted) {
-//                        Toast.makeText(this, "Both Permission granted", Toast.LENGTH_LONG).show();
+
+                    boolean fineAccepted = grantResults[1] == PackageManager.PERMISSION_GRANTED;
+                    boolean coarseAccepted = grantResults[2] == PackageManager.PERMISSION_GRANTED;
+                    boolean cameraAccepted = grantResults[3] == PackageManager.PERMISSION_GRANTED;
+                    boolean storageAccepted = grantResults[4] == PackageManager.PERMISSION_GRANTED;
+                    boolean phonestate = grantResults[5] == PackageManager.PERMISSION_GRANTED;
+                    if (fineAccepted && coarseAccepted && storageAccepted && cameraAccepted && phonestate) {
+                        Toast.makeText(LoginActivity.this, "Permission Granted", Toast.LENGTH_SHORT).show();
                         new DownloadData().execute("mobileNo^IMEIno^passcode");
-                    }
-                } else {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        if (shouldShowRequestPermissionRationale(READ_PHONE_STATE)) {
-                            showMessageOKCancel("You need to allow access the permissions",
-                                    new DialogInterface.OnClickListener() {
-                                        @TargetApi(Build.VERSION_CODES.M)
-                                        @Override
-                                        public void onClick(DialogInterface dialog, int which) {
-                                            requestPermissions(new String[]{READ_PHONE_STATE},
-                                                    PERMISSION_REQUEST_CODE);
-                                        }
-                                    });
-                            return;
+                    } else {
+
+                        Toast.makeText(LoginActivity.this, "Permission Denied, You cannot login.", Toast.LENGTH_SHORT).show();
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            if (shouldShowRequestPermissionRationale(CAMERA)) {
+                                showMessageOKCancel("You need to allow the all permissions before login",
+                                        new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                                    requestPermissions(new String[]{ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, Manifest.permission.CAMERA, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, READ_PHONE_STATE},
+                                                            PERMISSION_REQUEST_CODE);
+                                                }
+                                            }
+                                        });
+                                return;
+                            }
                         }
                     }
-
                 }
+
+
                 break;
         }
-
     }
 
-    /*showing alert message to accept the permissions*/
-    private void showMessageOKCancel(String message, DialogInterface.OnClickListener okListener) {
-        new AlertDialog.Builder(LoginActivity.this)
+    public void showMessageOKCancel(String message, DialogInterface.OnClickListener okListener) {
+        new android.support.v7.app.AlertDialog.Builder(LoginActivity.this)
                 .setMessage(message)
                 .setPositiveButton("OK", okListener)
                 .setNegativeButton("Cancel", null)
                 .create()
                 .show();
     }
-
 }

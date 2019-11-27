@@ -1,9 +1,11 @@
 package com.hmwssb.jalapp;
 
+import android.Manifest;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.Fragment;
+import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -21,9 +23,13 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
+import android.os.StrictMode;
 import android.provider.Settings;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -39,12 +45,23 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.SettingsClient;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+
 import org.ksoap2.SoapEnvelope;
 import org.ksoap2.serialization.SoapObject;
 import org.ksoap2.serialization.SoapSerializationEnvelope;
 import org.ksoap2.transport.HttpTransportSE;
 import org.xmlpull.v1.XmlPullParserException;
 
+import java.lang.reflect.Method;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
@@ -79,7 +96,8 @@ public class Refresh_GPS extends Fragment {
             line_dataVe = new Vector<String>(),
             valve_Vec = new Vector<String>();
     Vector<String[]> alert_Vec = new Vector<String[]>();
-
+    ProgressDialog progressDialog;
+    String latitude = "", longitude = "";
     protected LocationManager locationManager;
     LocationListener mlocListener;
     Location loc = null;
@@ -93,6 +111,24 @@ public class Refresh_GPS extends Fragment {
     private IntentFilter mIntentFilter;
 
     private static final int PERMISSION_REQUEST_CODE = 200;
+    private static final long UPDATE_INTERVAL_IN_MILLISECONDS = 10000;
+
+    // fastest updates interval - 5 sec
+    // location updates will be received if another app is requesting the locations
+    // than your app can handle
+    private static final long FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS = 5000;
+
+    private static final int REQUEST_CHECK_SETTINGS = 100;
+
+
+    // bunch of location related apis
+    private FusedLocationProviderClient mFusedLocationClient;
+    private SettingsClient mSettingsClient;
+    private LocationRequest mLocationRequest;
+    private LocationSettingsRequest mLocationSettingsRequest;
+    private LocationCallback mLocationCallback;
+    private Location mCurrentLocation;
+    private Boolean mRequestingLocationUpdates;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -103,19 +139,27 @@ public class Refresh_GPS extends Fragment {
 
         expListView = (ExpandableListView) view.findViewById(R.id.lvExp);
         tv_gps = (TextView) view.findViewById(R.id.tv_gps);
-
+        progressDialog = new ProgressDialog(getActivity());
+        progressDialog.setMessage("Please Getting Gps Coordinates");
         // preparing list data
 		/*turnGPSOn();
 		showProgressDialog();
 		getActivity().startService(new Intent(getActivity(), ZipprGPSService.class));*/
-
+        if (Build.VERSION.SDK_INT >= 24) {
+            try {
+                Method m = StrictMode.class.getMethod("disableDeathOnFileUriExposure");
+                m.invoke(null);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (checkPermission()) {
                 //If permission is already having then showing the toast
 //                Toast.makeText(EntryActivity.this, "You already have the both permissions", Toast.LENGTH_LONG).show();
                 turnGPSOn();
                 showProgressDialog();
-                getActivity().startService(new Intent(getActivity(), ZipprGPSService.class));
+//                getActivity().startService(new Intent(getActivity(), ZipprGPSService.class));
                 //Existing the method with return
             } else {
                 //If the app has not the permission then asking for the permission
@@ -125,17 +169,9 @@ public class Refresh_GPS extends Fragment {
         } else {
             turnGPSOn();
             showProgressDialog();
-            getActivity().startService(new Intent(getActivity(), ZipprGPSService.class));
+//            getActivity().startService(new Intent(getActivity(), ZipprGPSService.class));
         }
 
-        //gpsFinding();
-
-        // gps_data = "17.478924047284277,78.48647871748868";
-        // tv_gps.setText("GPS : " + gps_data);
-        // Helper.lat = 17.478924047284277;
-        // Helper.lon = 78.48647871748868;
-        // Helper.showShortToast(getActivity(), "GPS Coordinates Received....");
-        // new LoadData().execute();
         expListView.setOnChildClickListener(new OnChildClickListener() {
 
             @Override
@@ -155,16 +191,34 @@ public class Refresh_GPS extends Fragment {
                 return false;
             }
         });
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getActivity());
+        mSettingsClient = LocationServices.getSettingsClient(getActivity());
 
+        mLocationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                super.onLocationResult(locationResult);
+                // location is received
+                mCurrentLocation = locationResult.getLastLocation();
+                updateLocationUI();
+            }
+        };
+        mRequestingLocationUpdates = false;
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
+        mLocationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+
+        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
+        builder.addLocationRequest(mLocationRequest);
+        mLocationSettingsRequest = builder.build();
         return view;
     }
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        mIntentFilter = new IntentFilter();
-        mIntentFilter.addAction(ZipprGPSService.BROADCAST_ACTION);
-        getActivity().registerReceiver(broadcastReceiver, mIntentFilter);
+
     }
 
     public void showProgressDialog() {
@@ -391,21 +445,6 @@ public class Refresh_GPS extends Fragment {
 
     }
 
-    public void gpsFinding() {
-        try {
-            loc = null;
-            turnGPSOn();
-            showProgressDialog();
-            locationManager = (LocationManager) getActivity().getSystemService(
-                    getActivity().LOCATION_SERVICE);
-            mlocListener = new MyLocationListener();
-            locationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER,// network
-                    // provider,GPS_PROVIDER
-                    1000, 20, mlocListener);
-        } catch (Exception ex) {
-        }
-    }
 
     private void turnGPSOn() {
         try {
@@ -429,55 +468,6 @@ public class Refresh_GPS extends Fragment {
         }
     }
 
-    private void turnGPSOff() {
-        try {
-
-            String provider = Settings.Secure.getString(getActivity()
-                            .getContentResolver(),
-                    Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
-
-            if (provider.contains("gps")) { // if gps is enabled
-                final Intent poke = new Intent();
-                poke.setClassName("com.android.settings",
-                        "com.android.settings.widget.SettingsAppWidgetProvider");
-                poke.addCategory(Intent.CATEGORY_ALTERNATIVE);
-                poke.setData(Uri.parse("3"));
-                getActivity().sendBroadcast(poke);
-            }
-        } catch (Exception ex) {
-
-        }
-    }
-
-    private class MyLocationListener implements LocationListener {
-
-        public void onLocationChanged(Location location) {
-
-            if (location != null) {
-                loc = location;
-                Helper.lat = loc.getLatitude();
-                Helper.lon = loc.getLongitude();
-                gps_data = loc.getLatitude() + "-" + loc.getLongitude();
-                tv_gps.setText("GPS : " + gps_data);
-                Helper.showShortToast(getActivity(),
-                        "GPS Coordinates Received....");
-                locationManager.removeUpdates(mlocListener);
-                location = null;
-                turnGPSOff();
-                new LoadData().execute();
-            } else {
-            }
-        }
-
-        public void onProviderDisabled(String provider) {
-        }
-
-        public void onProviderEnabled(String provider) {
-        }
-
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-        }
-    }
 
     public class PostToServer extends AsyncTask<String, Void, String> {
 
@@ -859,61 +849,6 @@ public class Refresh_GPS extends Fragment {
     }
 
 
-    @Override
-    public void onPause() {
-        getActivity().unregisterReceiver(broadcastReceiver);
-        super.onPause();
-    }
-
-    @Override
-    public void onResume() {
-        // TODO Auto-generated method stub
-        super.onResume();
-        getActivity().registerReceiver(broadcastReceiver, mIntentFilter);
-    }
-
-    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (action.trim().equalsIgnoreCase(ZipprGPSService.BROADCAST_ACTION)) {
-                Bundle b = intent.getExtras();
-                String lat = b.getString("Lat");
-                String lon = b.getString("Lon");
-                gps_data = lat + "-" + lon;
-                getActivity().stopService(new Intent(getActivity(), ZipprGPSService.class));
-
-                System.out.println("lat........" + lat);
-                System.out.println("lon........" + lon);
-                Helper.lat = Double.parseDouble(lat);
-                Helper.lon = Double.parseDouble(lon);
-                tv_gps.setText("GPS : " + gps_data);
-                Helper.showShortToast(getActivity(),
-                        "GPS Coordinates Received....");
-
-                turnGPSOff();
-                new LoadData().execute();
-
-
-            }
-        }
-
-    };
-
-    private boolean isMyServiceRunning(Class<?> serviceClass) {
-        ActivityManager manager = (ActivityManager) getActivity().getSystemService(Context.ACTIVITY_SERVICE);
-        for (ActivityManager.RunningServiceInfo service : manager
-                .getRunningServices(Integer.MAX_VALUE)) {
-
-            if (serviceClass.getName().equals(service.service.getClassName())) {
-                System.out.println("serviceClass.getName()........"
-                        + serviceClass.getName());
-                return true;
-            }
-        }
-        return false;
-    }
-
     /*Method used to check the runtime permissions for location*/
     private boolean checkPermission() {
         int result = ContextCompat.checkSelfPermission(getActivity(), ACCESS_FINE_LOCATION);
@@ -934,7 +869,6 @@ public class Refresh_GPS extends Fragment {
                     if (locationAccepted) {
                         turnGPSOn();
                         showProgressDialog();
-                        getActivity().startService(new Intent(getActivity(), ZipprGPSService.class));
                     } else {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                             if (shouldShowRequestPermissionRationale(ACCESS_FINE_LOCATION)) {
@@ -971,5 +905,70 @@ public class Refresh_GPS extends Fragment {
                 .show();
     }
 
+    private void startLocationUpdates() {
+
+        progressDialog.show();
+        mRequestingLocationUpdates = true;
+        if (ActivityCompat.checkSelfPermission(getActivity(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getActivity(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        mFusedLocationClient.requestLocationUpdates(mLocationRequest,
+                mLocationCallback, Looper.myLooper());
+
+        updateLocationUI();
+    }
+
+    private void updateLocationUI() {
+        if (mCurrentLocation != null) {
+            progressDialog.dismiss();
+            latitude = String.valueOf(mCurrentLocation.getLatitude());
+            longitude = String.valueOf(mCurrentLocation.getLongitude());
+            gps_data = latitude + "-" + longitude;
+            stopLocationUpdates();
+            Helper.lat = Double.parseDouble(latitude);
+            Helper.lon = Double.parseDouble(longitude);
+            tv_gps.setText("GPS : " + gps_data);
+            Helper.showShortToast(getActivity(),
+                    "GPS Coordinates Received....");
+            new LoadData().execute();
+            Log.d("Inputfields", "updateLocationUI: " + latitude + "," + longitude);
+        }
+    }
+
+    public void stopLocationUpdates() {
+        // Removing location updates
+        mFusedLocationClient
+                .removeLocationUpdates(mLocationCallback)
+                .addOnCompleteListener(getActivity(), new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                    }
+                });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Resuming location updates depending on button state and
+        // allowed permissions
+        startLocationUpdates();
+        updateLocationUI();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (mRequestingLocationUpdates) {
+            // pausing location updates
+            stopLocationUpdates();
+        }
+    }
 
 }

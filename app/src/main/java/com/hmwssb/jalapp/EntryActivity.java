@@ -2,6 +2,7 @@ package com.hmwssb.jalapp;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.lang.reflect.Method;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.text.SimpleDateFormat;
@@ -37,6 +38,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.os.StrictMode;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
@@ -96,7 +98,7 @@ public class EntryActivity extends Activity implements OnClickListener {
     private IntentFilter mIntentFilter;
     private static final int PERMISSION_REQUEST_CODE = 200;
     public static final int MEDIA_TYPE_IMAGE = 1;
-    String imagetemp, mImageStr ,selectedItem;
+    String imagetemp, mImageStr, selectedItem;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,6 +110,14 @@ public class EntryActivity extends Activity implements OnClickListener {
         index = getIntent().getStringExtra("INDEX");
         System.out.println("index in entry....." + index);
         initViews();
+        if (Build.VERSION.SDK_INT >= 24) {
+            try {
+                Method m = StrictMode.class.getMethod("disableDeathOnFileUriExposure");
+                m.invoke(null);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public void initViews() {
@@ -273,9 +283,9 @@ public class EntryActivity extends Activity implements OnClickListener {
                     btn_image.requestFocusFromTouch();
                 } else {
                     if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                        if (canno.getText().toString()!=null && !canno.getText().toString().trim().equalsIgnoreCase("")){
+                        if (canno.getText().toString() != null && !canno.getText().toString().trim().equalsIgnoreCase("")) {
                             new GetSection().execute("Lat^Long");
-                        }else {
+                        } else {
                             Helper.showShortToast(EntryActivity.this,
                                     "Please Enter Can Number...");
                         }
@@ -490,7 +500,7 @@ public class EntryActivity extends Activity implements OnClickListener {
                                 linemanID,
                                 gps_data.substring(0, gps_data.indexOf("-")),
                                 gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress,canno.getText().toString(),selectedItem};
+                                locationAddress, canno.getText().toString(), selectedItem};
                     } else {
                         VALUE = new String[]{
                                 section_code,
@@ -501,7 +511,7 @@ public class EntryActivity extends Activity implements OnClickListener {
                                 linemanID,
                                 gps_data.substring(0, gps_data.indexOf("-")),
                                 gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress,canno.getText().toString(),selectedItem};
+                                locationAddress, canno.getText().toString(), selectedItem};
                     }
                     SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
                             + Helper.SaveChlorinationLineManApp;
@@ -1006,7 +1016,7 @@ public class EntryActivity extends Activity implements OnClickListener {
                 // sendBroadcast(poke);
 
                 startActivity(new Intent(
-                        Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                        android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
             }
         } catch (Exception ex) {
 
