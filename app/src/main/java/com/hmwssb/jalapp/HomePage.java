@@ -29,8 +29,8 @@ import java.net.SocketTimeoutException;
 
 public class HomePage extends Activity implements OnClickListener {
 
-    LinearLayout ll_complaints, ll_valve_operations, refresh_lines;
-    ImageView iv_logout;
+    LinearLayout ll_complaints, ll_valve_operations;
+    ImageView iv_logout , refresh_lines;
     RelativeLayout rl_lang;
     Dialog prog;
     TextView tv_lang, tv_complaints, tv_valve_oper;
@@ -43,7 +43,7 @@ public class HomePage extends Activity implements OnClickListener {
 
         setContentView(R.layout.home_page);
         ll_valve_operations = (LinearLayout) findViewById(R.id.ll_valve_operations);
-        refresh_lines = (LinearLayout) findViewById(R.id.refresh_lines);
+        refresh_lines = (ImageView) findViewById(R.id.refresh_lines);
 //		Helper.getMobileNumFromDB(MainActivity.this,
 //				DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
         ll_valve_operations.setOnClickListener(this);

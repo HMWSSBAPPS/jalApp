@@ -218,19 +218,19 @@ public class EntryActivity extends Activity implements OnClickListener {
 
         if (index.trim().equalsIgnoreCase("0")) {
             btn_image.setVisibility(View.VISIBLE);
-            rcvalue.setVisibility(View.VISIBLE);
-            canno.setVisibility(View.VISIBLE);
-            rcvalue.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    selectedItem = parent.getItemAtPosition(position).toString();
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-
-                }
-            });
+//            rcvalue.setVisibility(View.VISIBLE);
+//            canno.setVisibility(View.VISIBLE);
+//            rcvalue.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+//                @Override
+//                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+//                    selectedItem = parent.getItemAtPosition(position).toString();
+//                }
+//
+//                @Override
+//                public void onNothingSelected(AdapterView<?> parent) {
+//
+//                }
+//            });
         } else if (index.trim().equalsIgnoreCase("1")) {
             btn_image.setVisibility(View.VISIBLE);
 
@@ -283,12 +283,12 @@ public class EntryActivity extends Activity implements OnClickListener {
                     btn_image.requestFocusFromTouch();
                 } else {
                     if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                        if (canno.getText().toString() != null && !canno.getText().toString().trim().equalsIgnoreCase("")) {
+//                        if (canno.getText().toString() != null && !canno.getText().toString().trim().equalsIgnoreCase("")) {
                             new GetSection().execute("Lat^Long");
-                        } else {
-                            Helper.showShortToast(EntryActivity.this,
-                                    "Please Enter Can Number...");
-                        }
+//                        } else {
+//                            Helper.showShortToast(EntryActivity.this,
+//                                    "Please Enter Can Number...");
+//                        }
 
                     } else {
                         Helper.showShortToast(EntryActivity.this,
@@ -500,7 +500,7 @@ public class EntryActivity extends Activity implements OnClickListener {
                                 linemanID,
                                 gps_data.substring(0, gps_data.indexOf("-")),
                                 gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress, canno.getText().toString(), selectedItem};
+                                locationAddress};
                     } else {
                         VALUE = new String[]{
                                 section_code,
@@ -511,7 +511,7 @@ public class EntryActivity extends Activity implements OnClickListener {
                                 linemanID,
                                 gps_data.substring(0, gps_data.indexOf("-")),
                                 gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress, canno.getText().toString(), selectedItem};
+                                locationAddress};
                     }
                     SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
                             + Helper.SaveChlorinationLineManApp;
@@ -1233,7 +1233,7 @@ public class EntryActivity extends Activity implements OnClickListener {
                 if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
                     hit_index = 1;
                     new SubmitData()
-                            .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^addressLocation^Can^RCValue");
+                            .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^addressLocation");
                 } else {
                     Helper.showShortToast(EntryActivity.this,
                             "Please check your internet connection...");
