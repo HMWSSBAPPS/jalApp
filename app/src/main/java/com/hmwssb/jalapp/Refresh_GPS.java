@@ -938,10 +938,10 @@ public class Refresh_GPS extends Fragment {
             longitude = String.valueOf(mCurrentLocation.getLongitude());
             gps_data = latitude + "-" + longitude;
             stopLocationUpdates();
-//            Helper.lat = Double.parseDouble(latitude);
-//            Helper.lon = Double.parseDouble(longitude);
-            Helper.lat = Double.parseDouble("17.45575658");
-            Helper.lon = Double.parseDouble("78.44012295");
+            Helper.lat = Double.parseDouble(latitude);
+            Helper.lon = Double.parseDouble(longitude);
+//            Helper.lat = Double.parseDouble("17.45575658");
+//            Helper.lon = Double.parseDouble("78.44012295");
             tv_gps.setText("GPS : " + gps_data);
             Helper.showShortToast(getActivity(),
                     "GPS Coordinates Received....");

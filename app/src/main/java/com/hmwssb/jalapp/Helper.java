@@ -48,7 +48,7 @@ public class Helper {
 
     public static Dialog dialogbox;
 
-    public static String version = "2.0";
+    public static String version = "2.2";
 
     public static final int CAMERA_CAPTURE_IMAGE_REQUEST_CODE = 100;
 
