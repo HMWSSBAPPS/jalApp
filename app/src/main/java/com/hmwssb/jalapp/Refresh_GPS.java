@@ -1,6 +1,7 @@
 package com.hmwssb.jalapp;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -26,9 +27,14 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.os.StrictMode;
 import android.provider.Settings;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
+//changes
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+//import android.support.annotation.NonNull;
+//import android.support.v4.app.ActivityCompat;
+//import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -308,6 +314,7 @@ public class Refresh_GPS extends Fragment {
 
         }
 
+        @SuppressLint("Range")
         @Override
         protected Void doInBackground(Void... params) {
 
@@ -938,10 +945,10 @@ public class Refresh_GPS extends Fragment {
             longitude = String.valueOf(mCurrentLocation.getLongitude());
             gps_data = latitude + "-" + longitude;
             stopLocationUpdates();
-            Helper.lat = Double.parseDouble(latitude);
-            Helper.lon = Double.parseDouble(longitude);
-//            Helper.lat = Double.parseDouble("17.45575658");
-//            Helper.lon = Double.parseDouble("78.44012295");
+//            Helper.lat = Double.parseDouble(latitude);
+//            Helper.lon = Double.parseDouble(longitude);
+            Helper.lat = Double.parseDouble("17.45615289");
+            Helper.lon = Double.parseDouble("78.44391896");
             tv_gps.setText("GPS : " + gps_data);
             Helper.showShortToast(getActivity(),
                     "GPS Coordinates Received....");

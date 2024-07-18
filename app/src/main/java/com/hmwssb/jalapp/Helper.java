@@ -91,7 +91,7 @@ public class Helper {
             SaveIllegalConnectionInfo = "SaveIllegalConnectionInfo",
             SaveLowWaterPressureForLineManMobileApp = "SaveLowWaterPressureForLineManMobileApp";
 
-    public static String SECTION_CODE_URL = "http://bms.hyderabadwater.gov.in/val/mainservice.asmx?WSDL",
+    public static String SECTION_CODE_URL = "https://bms.hyderabadwater.gov.in/val/mainservice.asmx?WSDL",
             getsection = "getsection", illegal_section = "illegal_section";
 
     public static void showLongToast(Activity activity, String str) {
@@ -315,7 +315,7 @@ public class Helper {
         // System.out.println("i m in phone no check");
         if (str.length() < 10) {
             flag = true;
-        } else if (!str.startsWith("7") && !str.startsWith("8")
+        } else if (!str.startsWith("6") && !str.startsWith("7") && !str.startsWith("8")
                 && !str.startsWith("9")) {
             flag = true;
             // System.out.println("phone no::::" + str);
@@ -1106,7 +1106,30 @@ public class Helper {
 
         TelephonyManager mngr = (TelephonyManager) ctx
                 .getSystemService(Context.TELEPHONY_SERVICE);
-        return mngr.getDeviceId();
+        //return mngr.getDeviceId();
+        return getDeviceId(ctx);
+    }
+
+    public static String getDeviceId(Context context) {
+
+        String deviceId;
+
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            deviceId = Settings.Secure.getString(
+                    context.getContentResolver(),
+                    Settings.Secure.ANDROID_ID);
+        } else {
+            final TelephonyManager mTelephony = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+            if (mTelephony.getDeviceId() != null) {
+                deviceId = mTelephony.getDeviceId();
+            } else {
+                deviceId = Settings.Secure.getString(
+                        context.getContentResolver(),
+                        Settings.Secure.ANDROID_ID);
+            }
+        }
+
+        return deviceId;
     }
 
 

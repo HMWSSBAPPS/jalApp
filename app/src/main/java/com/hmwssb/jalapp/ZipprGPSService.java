@@ -3,12 +3,19 @@ package com.hmwssb.jalapp;
 import android.Manifest;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.annotation.RequiresPermission;
+//changes
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresPermission;
+import androidx.core.app.ActivityCompat;
+
+//import android.support.annotation.NonNull;
+//import android.support.annotation.Nullable;
+//import android.support.annotation.RequiresPermission;
 import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -118,6 +125,16 @@ public class ZipprGPSService extends Service implements
     @Override
     public void onConnected(@Nullable Bundle bundle) {
         if (DEBUG) Log.d(TAG, "onConnected() called with: bundle = [" + bundle + "]");
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
         Location mLastLocation = getLastLocation();
         if (mLastLocation != null) {
             onLocationChanged(mLastLocation);

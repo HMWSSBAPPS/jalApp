@@ -223,7 +223,7 @@ public class MainActivity extends Activity implements OnClickListener {
         protected void onPostExecute(String response) {
             try {
 
-                System.out.println("in post...." + response);
+                System.out.println("in post....yyyyyyyyyyyy" + response);
                 if (response.trim().startsWith("$102")) {
                     prog.dismiss();
                     Toast.makeText(MainActivity.this,

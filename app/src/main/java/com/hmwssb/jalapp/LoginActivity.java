@@ -1,10 +1,12 @@
 package com.hmwssb.jalapp;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -17,10 +19,16 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.content.LocalBroadcastManager;
+//changes
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
+//import android.support.annotation.NonNull;
+//import android.support.v4.app.ActivityCompat;
+//import android.support.v4.content.ContextCompat;
+//import android.support.v4.content.LocalBroadcastManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -76,6 +84,7 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
         et_reg_mobile = (EditText) findViewById(R.id.et_reg_mobile);
         appSignatureHashHelper = new AppSignatureHelper(this);
         Log.d("Hashvalue", "Apps Hash Key: " + appSignatureHashHelper.getAppSignatures().get(0));
+        System.out.println("Apps Hash Key====:" +appSignatureHashHelper.getAppSignatures().get(0));
         btn_register = (Button) findViewById(R.id.btn_register);
         btn_register.setOnClickListener(this);
         et_reg_mobile.addTextChangedListener(new TextWatcher() {
@@ -116,6 +125,7 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
 
     }
 
+    @SuppressLint("Range")
     @Override
     public void onClick(View v) {
 
@@ -123,6 +133,7 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
             if (et_reg_mobile.getText().toString().length() == 0) {
                 et_reg_mobile.setError("Please enter mobile number...",
                         Helper.showIcon(R.drawable.error, LoginActivity.this));
+                System.out.println("vvvvvvvvvvv");
                 et_reg_mobile.requestFocus();
                 et_reg_mobile.requestFocusFromTouch();
             } else if (Helper.getcheckPhoneno(et_reg_mobile.getText()
@@ -134,7 +145,7 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
             } else {
                 if (Helper.isNetworkAvailable(LoginActivity.this) == true) {
 
-
+                    System.out.println("ssssssssss");
                     DBHelper dbh = new DBHelper(LoginActivity.this);
                     SQLiteDatabase db = dbh.getWritableDatabase();
                     String Query = "Select * From " + DBHelper.TABLE_GENERAL
@@ -156,7 +167,7 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
                         // passCode = "1234";
                         // new DownloadData().execute("mobileNo^passcode");
 
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             if (checkPermission()) {
                                 //If permission is already having then showing the toast
 //                                Toast.makeText(LoginActivity.this, "You already have the both permission", Toast.LENGTH_LONG).show();
@@ -178,7 +189,7 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
                         }
                         hit_index = 3;
 //                        new DownloadData().execute("mobileNo^passcode");
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             if (checkPermission()) {
                                 //If permission is already having then showing the toast
 //                                Toast.makeText(LoginActivity.this, "You already have the both permission", Toast.LENGTH_LONG).show();
@@ -315,7 +326,6 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
         @Override
         protected void onPostExecute(String response) {
             try {
-
                 System.out.println("in post...." + response);
                 if (response.trim().startsWith("$102")) {
                     prog.dismiss();
@@ -329,61 +339,34 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
                             Toast.LENGTH_SHORT).show();
                 } else {
                     if (hit_index == 1) {
-                        if (response.trim().toLowerCase().indexOf("fail") != -1) {
+                        if (response.trim().toLowerCase().contains("fail")) {
                             prog.dismiss();
-                            // DBHelper.insertintoTable(LoginActivity.this,
-                            // DBHelper.TABLE_GENERAL, new String[] {
-                            // DBHelper.GEN_MOBILE,
-                            // DBHelper.GEN_USER_ID,
-                            // DBHelper.GEN_PASS_CODE,
-                            // DBHelper.GEN_DATE }, new String[] {
-                            // et_reg_mobile.getText().toString(),
-                            // "", "1234", Helper.getDate() });
-                            // passCode = "1234";
-                            // hit_index = 2;
-                            // new DownloadData().execute("mobileNo^passcode");
                             Toast.makeText(
                                     LoginActivity.this,
                                     response.substring(response.indexOf(",") + 1),
                                     Toast.LENGTH_SHORT).show();
-                        } else if (response.trim().toLowerCase()
-                                .indexOf("success") != -1) {
+                        } else if (response.trim().toLowerCase().contains("success")) {
                             finalresponse = response;
-                            startSMSListener();
-//                            ReadSMS(response);
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                startSMSListener();
+                            }
                         } else {
                             prog.dismiss();
                             Toast.makeText(LoginActivity.this, response,
                                     Toast.LENGTH_SHORT).show();
                         }
                     } else if (hit_index == 2 || hit_index == 3) {
-                        // if (response.trim().toLowerCase().indexOf("fail") !=
-                        // -1) {
-                        // prog.dismiss();
-                        // Toast.makeText(
-                        // LoginActivity.this,
-                        // response.substring(response.indexOf(",") + 1),
-                        // Toast.LENGTH_SHORT).show();
-                        // } else if (response.trim().toLowerCase()
-                        // .indexOf("success") != -1) {
                         LoadData(response);
-                        // } else {
-                        // prog.dismiss();
-                        // Toast.makeText(LoginActivity.this, response,
-                        // Toast.LENGTH_SHORT).show();
-                        // }
                     }
-
                 }
-
             } catch (Exception e) {
                 e.printStackTrace();
                 prog.dismiss();
                 Toast.makeText(LoginActivity.this, "Please Try Again...",
                         Toast.LENGTH_SHORT).show();
             }
-
         }
+
 
     }
 
@@ -486,7 +469,7 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
                                         subSPlit[10].indexOf("=") + 1).trim()
                                         + " "
                                         + subSPlit[11].substring(
-                                        subSPlit[11].indexOf("=") + 1)
+                                                subSPlit[11].indexOf("=") + 1)
                                         .trim(),
                                 "0-0",
                                 subSPlit[18].substring(subSPlit[18]
@@ -573,35 +556,43 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
         }, 30000);
     }
 
+
     private void startSMSListener() {
         try {
             otpReceiver = new SMSReceiver();
             otpReceiver.setOTPListener(this);
 
-            IntentFilter intentFilter = new IntentFilter();
-            intentFilter.addAction(SmsRetriever.SMS_RETRIEVED_ACTION);
-            this.registerReceiver(otpReceiver, intentFilter);
+            IntentFilter intentFilter = new IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION);
+
+            // Register the receiver, add Context.RECEIVER_EXPORTED flag for Android 14 and above
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                this.registerReceiver(otpReceiver, intentFilter, Context.RECEIVER_EXPORTED);
+            } else {
+                this.registerReceiver(otpReceiver, intentFilter);
+            }
 
             SmsRetrieverClient client = SmsRetriever.getClient(this);
-
             Task<Void> task = client.startSmsRetriever();
+
             task.addOnSuccessListener(new OnSuccessListener<Void>() {
                 @Override
                 public void onSuccess(Void aVoid) {
-                    // API successfully started
+                    Log.d("SMSRetriever", "SMS Retriever API started successfully");
                 }
             });
 
             task.addOnFailureListener(new OnFailureListener() {
                 @Override
                 public void onFailure(@NonNull Exception e) {
-                    // Fail to start API
+                    Log.e("SMSRetriever", "Failed to start SMS Retriever API", e);
                 }
             });
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+
 
     @Override
     public void onOTPReceived(String otp) {
@@ -678,69 +669,150 @@ public class LoginActivity extends Activity implements OnClickListener, SMSRecei
     }
 
 
+    //    public boolean checkPermission() {
+//        int FINELOCATION = ContextCompat.checkSelfPermission(getApplicationContext(), ACCESS_FINE_LOCATION);
+//        int COARSELOCATION = ContextCompat.checkSelfPermission(getApplicationContext(), ACCESS_COARSE_LOCATION);
+//        int CAMERA = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA);
+//        int READSTORAGE = ContextCompat.checkSelfPermission(getApplicationContext(), READ_EXTERNAL_STORAGE);
+//        int WRITESTORAGE = ContextCompat.checkSelfPermission(getApplicationContext(), WRITE_EXTERNAL_STORAGE);
+//        int READPHONE = ContextCompat.checkSelfPermission(getApplicationContext(), WRITE_EXTERNAL_STORAGE);
+//
+//
+//        return FINELOCATION == PackageManager.PERMISSION_GRANTED && COARSELOCATION == PackageManager.PERMISSION_GRANTED && READSTORAGE == PackageManager.PERMISSION_GRANTED && WRITESTORAGE == PackageManager.PERMISSION_GRANTED && CAMERA == PackageManager.PERMISSION_GRANTED && READPHONE == PackageManager.PERMISSION_GRANTED;
+//
+//    }
     public boolean checkPermission() {
-        int FINELOCATION = ContextCompat.checkSelfPermission(getApplicationContext(), ACCESS_FINE_LOCATION);
-        int COARSELOCATION = ContextCompat.checkSelfPermission(getApplicationContext(), ACCESS_COARSE_LOCATION);
+        int FINELOCATION = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION);
+        int COARSELOCATION = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION);
         int CAMERA = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA);
-        int READSTORAGE = ContextCompat.checkSelfPermission(getApplicationContext(), READ_EXTERNAL_STORAGE);
-        int WRITESTORAGE = ContextCompat.checkSelfPermission(getApplicationContext(), WRITE_EXTERNAL_STORAGE);
-        int READPHONE = ContextCompat.checkSelfPermission(getApplicationContext(), WRITE_EXTERNAL_STORAGE);
+        int READSTORAGE = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_EXTERNAL_STORAGE);
+        int WRITESTORAGE = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        int READPHONE = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_PHONE_STATE);
+        int READ_MEDIA_IMAGES = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_MEDIA_IMAGES);
+        int READ_MEDIA_VIDEO = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_MEDIA_VIDEO);
+        int READ_MEDIA_AUDIO = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_MEDIA_AUDIO);
 
-
-        return FINELOCATION == PackageManager.PERMISSION_GRANTED && COARSELOCATION == PackageManager.PERMISSION_GRANTED && READSTORAGE == PackageManager.PERMISSION_GRANTED && WRITESTORAGE == PackageManager.PERMISSION_GRANTED && CAMERA == PackageManager.PERMISSION_GRANTED && READPHONE == PackageManager.PERMISSION_GRANTED;
-
-    }
-
-    public void requestPermission() {
-
-        ActivityCompat.requestPermissions(LoginActivity.this, new String[]{ACCESS_FINE_LOCATION, READ_PHONE_STATE, ACCESS_COARSE_LOCATION, Manifest.permission.CAMERA, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
-
-
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case PERMISSION_REQUEST_CODE:
-                if (grantResults.length > 0) {
-
-                    boolean fineAccepted = grantResults[1] == PackageManager.PERMISSION_GRANTED;
-                    boolean coarseAccepted = grantResults[2] == PackageManager.PERMISSION_GRANTED;
-                    boolean cameraAccepted = grantResults[3] == PackageManager.PERMISSION_GRANTED;
-                    boolean storageAccepted = grantResults[4] == PackageManager.PERMISSION_GRANTED;
-                    boolean phonestate = grantResults[5] == PackageManager.PERMISSION_GRANTED;
-                    if (fineAccepted && coarseAccepted && storageAccepted && cameraAccepted && phonestate) {
-                        Toast.makeText(LoginActivity.this, "Permission Granted", Toast.LENGTH_SHORT).show();
-                        new DownloadData().execute("mobileNo^IMEIno^passcode");
-                    } else {
-
-                        Toast.makeText(LoginActivity.this, "Permission Denied, You cannot login.", Toast.LENGTH_SHORT).show();
-
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            if (shouldShowRequestPermissionRationale(CAMERA)) {
-                                showMessageOKCancel("You need to allow the all permissions before login",
-                                        new DialogInterface.OnClickListener() {
-                                            @Override
-                                            public void onClick(DialogInterface dialog, int which) {
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                                    requestPermissions(new String[]{ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, Manifest.permission.CAMERA, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, READ_PHONE_STATE},
-                                                            PERMISSION_REQUEST_CODE);
-                                                }
-                                            }
-                                        });
-                                return;
-                            }
-                        }
-                    }
-                }
-
-
-                break;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return FINELOCATION == PackageManager.PERMISSION_GRANTED &&
+                    COARSELOCATION == PackageManager.PERMISSION_GRANTED &&
+                    CAMERA == PackageManager.PERMISSION_GRANTED &&
+                    READPHONE == PackageManager.PERMISSION_GRANTED &&
+                    READ_MEDIA_IMAGES == PackageManager.PERMISSION_GRANTED &&
+                    READ_MEDIA_VIDEO == PackageManager.PERMISSION_GRANTED &&
+                    READ_MEDIA_AUDIO == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return FINELOCATION == PackageManager.PERMISSION_GRANTED &&
+                    COARSELOCATION == PackageManager.PERMISSION_GRANTED &&
+                    CAMERA == PackageManager.PERMISSION_GRANTED &&
+                    READSTORAGE == PackageManager.PERMISSION_GRANTED &&
+                    WRITESTORAGE == PackageManager.PERMISSION_GRANTED &&
+                    READPHONE == PackageManager.PERMISSION_GRANTED;
         }
     }
 
+    //    public void requestPermission() {
+//
+//        ActivityCompat.requestPermissions(LoginActivity.this, new String[]{ACCESS_FINE_LOCATION, READ_PHONE_STATE, ACCESS_COARSE_LOCATION, Manifest.permission.CAMERA, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
+//
+//
+//    }
+    private void requestPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                            Manifest.permission.CAMERA,
+                            Manifest.permission.READ_MEDIA_IMAGES,
+                            Manifest.permission.READ_MEDIA_VIDEO,
+                            Manifest.permission.READ_MEDIA_AUDIO,
+                            Manifest.permission.READ_PHONE_STATE,
+                            Manifest.permission.RECEIVE_SMS,
+                            Manifest.permission.READ_SMS
+                    },
+                    PERMISSION_REQUEST_CODE);
+        } else {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                            Manifest.permission.CAMERA,
+                            Manifest.permission.READ_EXTERNAL_STORAGE,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            Manifest.permission.READ_PHONE_STATE,
+                            Manifest.permission.RECEIVE_SMS,
+                            Manifest.permission.READ_SMS
+                    },
+                    PERMISSION_REQUEST_CODE);
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            for (int i = 0; i < permissions.length; i++) {
+                Log.d("PermissionsResult", "Permission: " + permissions[i] + ", Result: " + grantResults[i]);
+            }
+
+            boolean fineAccepted = false;
+            boolean coarseAccepted = false;
+            boolean cameraAccepted = false;
+            boolean storageAccepted = false;
+            boolean readPhoneAccepted = false;
+            boolean smsAccepted = false;
+
+            for (int i = 0; i < permissions.length; i++) {
+                switch (permissions[i]) {
+                    case Manifest.permission.ACCESS_FINE_LOCATION:
+                        fineAccepted = grantResults[i] == PackageManager.PERMISSION_GRANTED;
+                        break;
+                    case Manifest.permission.ACCESS_COARSE_LOCATION:
+                        coarseAccepted = grantResults[i] == PackageManager.PERMISSION_GRANTED;
+                        break;
+                    case Manifest.permission.CAMERA:
+                        cameraAccepted = grantResults[i] == PackageManager.PERMISSION_GRANTED;
+                        break;
+                    case Manifest.permission.READ_EXTERNAL_STORAGE:
+                    case Manifest.permission.READ_MEDIA_IMAGES:
+                    case Manifest.permission.READ_MEDIA_VIDEO:
+                    case Manifest.permission.READ_MEDIA_AUDIO:
+                    case Manifest.permission.WRITE_EXTERNAL_STORAGE:
+                        storageAccepted |= grantResults[i] == PackageManager.PERMISSION_GRANTED;
+                        break;
+                    case Manifest.permission.READ_PHONE_STATE:
+                        readPhoneAccepted = grantResults[i] == PackageManager.PERMISSION_GRANTED;
+                        break;
+                    case Manifest.permission.RECEIVE_SMS:
+                    case Manifest.permission.READ_SMS:
+                        smsAccepted |= grantResults[i] == PackageManager.PERMISSION_GRANTED;
+                }
+            }
+
+            if (fineAccepted && coarseAccepted && cameraAccepted && storageAccepted && readPhoneAccepted && smsAccepted) {
+                Toast.makeText(LoginActivity.this, "Permission Granted", Toast.LENGTH_SHORT).show();
+                new DownloadData().execute("mobileNo^IMEIno^passcode");
+            } else {
+                Toast.makeText(LoginActivity.this, "Permission Denied, You cannot login.", Toast.LENGTH_SHORT).show();
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    showMessageOKCancel("You need to allow all permissions before login",
+                            new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    requestPermission();
+                                }
+                            });
+                }
+            }
+        }
+    }
+
+
     public void showMessageOKCancel(String message, DialogInterface.OnClickListener okListener) {
-        new android.support.v7.app.AlertDialog.Builder(LoginActivity.this)
+        new
+                //changes
+                androidx.appcompat.app.AlertDialog.
+//                android.support.v7.app.AlertDialog.
+                        Builder(LoginActivity.this)
                 .setMessage(message)
                 .setPositiveButton("OK", okListener)
                 .setNegativeButton("Cancel", null)

@@ -2,6 +2,7 @@ package com.hmwssb.jalapp;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
@@ -9,16 +10,19 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+import org.jetbrains.annotations.Nullable;
 import org.ksoap2.SoapEnvelope;
 import org.ksoap2.serialization.SoapObject;
 import org.ksoap2.serialization.SoapSerializationEnvelope;
 import org.ksoap2.transport.HttpTransportSE;
 import org.xmlpull.v1.XmlPullParserException;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -26,8 +30,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -41,9 +47,17 @@ import android.os.Message;
 import android.os.StrictMode;
 import android.provider.MediaStore;
 import android.provider.Settings;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.content.FileProvider;
+//import android.support.v4.app.ActivityCompat;
+//import android.support.v4.content.ContextCompat;
+//import android.support.v4.content.FileProvider;
+//import android.support.v4.content.res.ResourcesCompat;
+//changes
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+import androidx.core.content.res.ResourcesCompat;
+/////
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Base64;
@@ -67,6 +81,7 @@ import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
 import static com.hmwssb.jalapp.Helper.decodeSampledBitmapFromFile;
 import static com.hmwssb.jalapp.Helper.reqHeight;
 import static com.hmwssb.jalapp.Helper.reqWidth;
+import static com.hmwssb.jalapp.ZipprGPSService.BROADCAST_ACTION;
 
 public class EntryActivity extends Activity implements OnClickListener {
 
@@ -99,17 +114,25 @@ public class EntryActivity extends Activity implements OnClickListener {
     private static final int PERMISSION_REQUEST_CODE = 200;
     public static final int MEDIA_TYPE_IMAGE = 1;
     String imagetemp, mImageStr, selectedItem;
+    static final int REQUEST_TAKE_PHOTO = 100;
+    int phototype = 0;
+    String mCurrentPhotoPath = "", picCncoded = "";
+    private static final int REQUEST_ENABLE_GPS = 1001;
+    private ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // TODO Auto-generated method stub
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.entry_page);
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("Loading...");
+        progressDialog.setCancelable(false);
+        mIntentFilter = new IntentFilter();
+        mIntentFilter.addAction(BROADCAST_ACTION);
         name = getIntent().getStringExtra("NAME");
         index = getIntent().getStringExtra("INDEX");
         System.out.println("index in entry....." + index);
-        initViews();
+
         if (Build.VERSION.SDK_INT >= 24) {
             try {
                 Method m = StrictMode.class.getMethod("disableDeathOnFileUriExposure");
@@ -118,342 +141,233 @@ public class EntryActivity extends Activity implements OnClickListener {
                 e.printStackTrace();
             }
         }
+
+        initViews();
     }
 
-    public void initViews() {
-        mIntentFilter = new IntentFilter();
-        mIntentFilter.addAction(ZipprGPSService.BROADCAST_ACTION);
-        registerReceiver(broadcastReceiver, mIntentFilter);
-        tv_title = (TextView) findViewById(R.id.tv_title);
-        rcvalue = findViewById(R.id.rcvalue);
-        canno = findViewById(R.id.canno);
 
-        ll_meter = (LinearLayout) findViewById(R.id.ll_meter);
-        et_meter_can_no = (EditText) findViewById(R.id.et_meter_can_no);
-        et_meter_can_no.addTextChangedListener(new TextWatcher() {
+    private void initViews() {
+        try {
+            mIntentFilter = new IntentFilter();
+            mIntentFilter.addAction(BROADCAST_ACTION);
 
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before,
-                                      int count) {
-                if (et_meter_can_no.getText().toString().length() > 0) {
-                    et_meter_can_no.setError(null);
+            tv_title = findViewById(R.id.tv_title);
+            rcvalue = findViewById(R.id.rcvalue);
+            canno = findViewById(R.id.canno);
+
+            ll_meter = findViewById(R.id.ll_meter);
+            et_meter_can_no = findViewById(R.id.et_meter_can_no);
+            et_meter_can_no.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    if (et_meter_can_no.getText().toString().length() > 0) {
+                        et_meter_can_no.setError(null);
+                    }
                 }
-            }
 
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count,
-                                          int after) {
-                // TODO Auto-generated method stub
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
-            }
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
 
-            @Override
-            public void afterTextChanged(Editable s) {
-                // TODO Auto-generated method stub
-
-            }
-        });
-
-        ll_billing = (LinearLayout) findViewById(R.id.ll_billing);
-        et_billing_can_no = (EditText) findViewById(R.id.et_billing_can_no);
-        et_billing_can_no.addTextChangedListener(new TextWatcher() {
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before,
-                                      int count) {
-                if (et_billing_can_no.getText().toString().length() > 0) {
-                    et_billing_can_no.setError(null);
+            ll_billing = findViewById(R.id.ll_billing);
+            et_billing_can_no = findViewById(R.id.et_billing_can_no);
+            et_billing_can_no.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    if (et_billing_can_no.getText().toString().length() > 0) {
+                        et_billing_can_no.setError(null);
+                    }
                 }
+
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
+
+            btn_image = findViewById(R.id.btn_image);
+            btn_image.setOnClickListener(this);
+            btn_submit = findViewById(R.id.btn_submit);
+            btn_submit.setOnClickListener(this);
+            iv_img = findViewById(R.id.iv_img);
+
+            if (Helper.lan_str.trim().equalsIgnoreCase("english")) {
+                btn_image.setText("CAPTURE IMAGE");
+                btn_submit.setText("SUBMIT");
+            } else {
+                btn_image.setText("ఫోటో తీయండి");
+                btn_submit.setText("పంపండి");
             }
 
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count,
-                                          int after) {
-                // TODO Auto-generated method stub
-
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                // TODO Auto-generated method stub
-
-            }
-        });
-
-        btn_image = (Button) findViewById(R.id.btn_image);
-        btn_image.setOnClickListener(this);
-        btn_submit = (Button) findViewById(R.id.btn_submit);
-        btn_submit.setOnClickListener(this);
-        iv_img = (ImageView) findViewById(R.id.iv_img);
-        if (Helper.lan_str.trim().equalsIgnoreCase("english")) {
-            btn_image.setText("CAPTURE IMAGE");
-            btn_submit.setText("SUBMIT");
-        } else {
-            btn_image.setText("ఫోటో తీయండి");
-            btn_submit.setText("పంపండి");
+            setViews();
+        } catch (Exception e) {
+            Log.e("EntryActivity", "Error in initViews", e);
         }
-        setViews();
-
-       /* Log.e("VALVE_LINEMANID ", Helper.getMobileNumFromDB(EntryActivity.this,
-                DBHelper.TABLE_VALVE, DBHelper.VALVE_LINEMANID));*/
-
-        /*DBHelper dbh = new DBHelper(this);
-        SQLiteDatabase db = dbh.getWritableDatabase();
-        SQLiteDatabase db1 = dbh.getWritableDatabase();
-        String Query1 = "SELECT * FROM " + DBHelper.TABLE_GENERAL;
-        Cursor c1 = db.rawQuery(Query1, null);
-        String date = "";
-        while (c1.moveToNext()) {
-            date = c1.getString(c1.getColumnIndex(DBHelper.GEN_DATE));
-            Log.e("Splash GEN_MOBILE", c1.getString(c1.getColumnIndex(DBHelper.GEN_MOBILE)));
-        }
-        c1.close();
-        db1.close();*/
     }
+
+
 
     public void setViews() {
-        tv_title.setText(name);
-        tv_title.setTextColor(Color.parseColor(getIntent().getStringExtra(
-                "COLOR")));
+        try {
+            if (name != null) {
+                tv_title.setText(name);
+            } else {
+                Log.e("EntryActivity", "Name is null");
+            }
 
-        if (index.trim().equalsIgnoreCase("0")) {
-            btn_image.setVisibility(View.VISIBLE);
-//            rcvalue.setVisibility(View.VISIBLE);
-//            canno.setVisibility(View.VISIBLE);
-//            rcvalue.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-//                @Override
-//                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-//                    selectedItem = parent.getItemAtPosition(position).toString();
-//                }
-//
-//                @Override
-//                public void onNothingSelected(AdapterView<?> parent) {
-//
-//                }
-//            });
-        } else if (index.trim().equalsIgnoreCase("1")) {
-            btn_image.setVisibility(View.VISIBLE);
+            String colorString = getIntent().getStringExtra("COLOR");
+            if (colorString != null) {
+                try {
+                    tv_title.setTextColor(Color.parseColor(colorString));
+                } catch (IllegalArgumentException e) {
+                    Log.e("EntryActivity", "Invalid color format: " + colorString, e);
+                }
+            } else {
+                Log.e("EntryActivity", "Color is null");
+            }
 
-        } else if (index.trim().equalsIgnoreCase("2")) {
-
-            btn_image.setVisibility(View.VISIBLE);
-
-        } else if (index.trim().equalsIgnoreCase("3")) {
-            btn_image.setVisibility(View.VISIBLE);
-        } else if (index.trim().equalsIgnoreCase("4")) {
-            btn_image.setVisibility(View.VISIBLE);
-        } else if (index.trim().equalsIgnoreCase("5")) {
-            btn_image.setVisibility(View.VISIBLE);
-
-        } else if (index.trim().equalsIgnoreCase("6")) {
-            ll_billing.setVisibility(View.VISIBLE);
-        } else if (index.trim().equalsIgnoreCase("7")) {
-            ll_meter.setVisibility(View.VISIBLE);
-        } else if (index.trim().equalsIgnoreCase("8")) {
-
-            btn_image.setVisibility(View.VISIBLE);
+            if (index != null) {
+                index = index.trim();
+                switch (index) {
+                    case "0":
+                    case "1":
+                    case "2":
+                    case "3":
+                    case "4":
+                    case "5":
+                    case "8":
+                        btn_image.setVisibility(View.VISIBLE);
+                        break;
+                    case "6":
+                        ll_billing.setVisibility(View.VISIBLE);
+                        break;
+                    case "7":
+                        ll_meter.setVisibility(View.VISIBLE);
+                        break;
+                    default:
+                        Log.e("EntryActivity", "Invalid index value: " + index);
+                        break;
+                }
+            } else {
+                Log.e("EntryActivity", "Index is null");
+            }
+        } catch (Exception e) {
+            Log.e("EntryActivity", "Error in setViews", e);
         }
     }
 
-    public void showProgressDialog() {
 
-        try {
-            prog = new Dialog(EntryActivity.this, R.style.AppTheme1);
-            prog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-            prog.setContentView(R.layout.progress_layout);
-            prog.setCancelable(false);
-            prog.show();
-        } catch (Exception e) {
-            e.printStackTrace();
+    private void showProgressDialog() {
+        if (progressDialog != null && !progressDialog.isShowing()) {
+            progressDialog.show();
         }
-
     }
 
     @Override
     public void onClick(View v) {
-
         if (v == btn_submit) {
-            if (index.trim().equalsIgnoreCase("0")) {
-//                Helper.showShortToast(EntryActivity.this,
-//                        "This is Chlorine...");
-                if (iv_img.getVisibility() == View.GONE) {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please capture image");
-                    btn_image.requestFocus();
-                    btn_image.requestFocusFromTouch();
-                } else {
-                    if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-//                        if (canno.getText().toString() != null && !canno.getText().toString().trim().equalsIgnoreCase("")) {
-                            new GetSection().execute("Lat^Long");
-//                        } else {
-//                            Helper.showShortToast(EntryActivity.this,
-//                                    "Please Enter Can Number...");
-//                        }
-
-                    } else {
-                        Helper.showShortToast(EntryActivity.this,
-                                "Please check your internet connection...");
-                    }
-                }
-            } else if (index.trim().equalsIgnoreCase("1")) {
-                if (iv_img.getVisibility() == View.GONE) {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please capture image");
-                    btn_image.requestFocus();
-                    btn_image.requestFocusFromTouch();
-                } else {
-                    if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                        new GetSection().execute("Lat^Long");
-                    } else {
-                        Helper.showShortToast(EntryActivity.this,
-                                "Please check your internet connection...");
-                    }
-                }
-
-            } else if (index.trim().equalsIgnoreCase("2")) {
-
-                if (iv_img.getVisibility() == View.GONE) {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please capture image");
-                    btn_image.requestFocus();
-                    btn_image.requestFocusFromTouch();
-                } else {
-                    if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                        new GetSection().execute("Lat^Long");
-                    } else {
-                        Helper.showShortToast(EntryActivity.this,
-                                "Please check your internet connection...");
-                    }
-                }
-
-            } else if (index.trim().equalsIgnoreCase("3")) {
-                if (iv_img.getVisibility() == View.GONE) {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please capture image");
-                    btn_image.requestFocus();
-                    btn_image.requestFocusFromTouch();
-                } else {
-                    if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                        new GetSection().execute("Lat^Long");
-                    } else {
-                        Helper.showShortToast(EntryActivity.this,
-                                "Please check your internet connection...");
-                    }
-                }
-            } else if (index.trim().equalsIgnoreCase("4")) {
-                if (iv_img.getVisibility() == View.GONE) {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please capture image");
-                    btn_image.requestFocus();
-                    btn_image.requestFocusFromTouch();
-                } else {
-                    if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                        new GetSection().execute("Lat^Long");
-                    } else {
-                        Helper.showShortToast(EntryActivity.this,
-                                "Please check your internet connection...");
-                    }
-                }
-            } else if (index.trim().equalsIgnoreCase("5")) {
-                if (iv_img.getVisibility() == View.GONE) {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please capture image");
-                    btn_image.requestFocus();
-                    btn_image.requestFocusFromTouch();
-                } else {
-                    if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                        new GetSection().execute("Lat^Long");
-                    } else {
-                        Helper.showShortToast(EntryActivity.this,
-                                "Please check your internet connection...");
-                    }
-                }
-            } else if (index.trim().equalsIgnoreCase("6")) {
-                if (et_billing_can_no.getText().toString().length() == 0) {
-
-                    et_billing_can_no.setError("Please enter can number",
-                            Helper.showIcon(R.drawable.error,
-                                    EntryActivity.this));
-                    et_billing_can_no.requestFocus();
-                    et_billing_can_no.requestFocusFromTouch();
-                } else if (et_billing_can_no.getText().toString().length() < 9) {
-
-                    et_billing_can_no.setError("CAN number should be 9 digit",
-                            Helper.showIcon(R.drawable.error,
-                                    EntryActivity.this));
-                    et_billing_can_no.requestFocus();
-                    et_billing_can_no.requestFocusFromTouch();
-                } else {
-                    if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                        new GetSection().execute("Lat^Long");
-                    } else {
-                        Helper.showShortToast(EntryActivity.this,
-                                "Please check your internet connection...");
-                    }
-                }
-            } else if (index.trim().equalsIgnoreCase("7")) {
-                if (et_meter_can_no.getText().toString().length() == 0) {
-
-                    et_meter_can_no.setError("Please enter can number", Helper
-                            .showIcon(R.drawable.error, EntryActivity.this));
-                    et_meter_can_no.requestFocus();
-                    et_meter_can_no.requestFocusFromTouch();
-                } else if (et_meter_can_no.getText().toString().length() < 9) {
-
-                    et_meter_can_no.setError("CAN number should be 9 digit",
-                            Helper.showIcon(R.drawable.error,
-                                    EntryActivity.this));
-                    et_meter_can_no.requestFocus();
-                    et_meter_can_no.requestFocusFromTouch();
-                } else {
-                    if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                        new GetSection().execute("Lat^Long");
-                    } else {
-                        Helper.showShortToast(EntryActivity.this,
-                                "Please check your internet connection...");
-                    }
-                }
-            } else if (index.trim().equalsIgnoreCase("8")) {
-
-                if (iv_img.getVisibility() == View.GONE) {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please capture image");
-                    btn_image.requestFocus();
-                    btn_image.requestFocusFromTouch();
-                } else {
-                    if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                        new GetSection().execute("Lat^Long");
-                    } else {
-                        Helper.showShortToast(EntryActivity.this,
-                                "Please check your internet connection...");
-                    }
-                }
-            }
-
+            handleSubmitClick();
         } else if (v == btn_image) {
-            // gps_data = "17.4743731-78.485867";
-            // showProgressDialog();
-            // new GetSection().execute("Lat^Long");
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (checkPermission()) {
-                    //If permission is already having then showing the toast
-                    turnGPSOn();
-                    showProgressDialog();
-                    startService(new Intent(this, ZipprGPSService.class));
-                } else {
-                    //If the app has not the permission then asking for the permission
-//                            requestStoragePermission();
-                    requestPermission();
-                }
-            } else {
-                turnGPSOn();
+            handleImageClick();
+        }
+    }
+    private void handleImageClick() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkPermission()) {
+                // Start GPS service if permission granted
                 showProgressDialog();
                 startService(new Intent(this, ZipprGPSService.class));
+                captureImage();
+            } else {
+                requestPermission();
             }
-            //gpsFinding();
+        } else {
+            showProgressDialog();
+            startService(new Intent(this, ZipprGPSService.class));
+            captureImage();
         }
-
     }
+    private void handleSubmitClick() {
+        switch (index.trim()) {
+            case "0":
+            case "1":
+            case "2":
+            case "3":
+            case "4":
+            case "5":
+            case "8":
+                handleCommonImageSubmit();
+                break;
+            case "6":
+                handleBillingCanSubmit();
+                break;
+            case "7":
+                handleMeterCanSubmit();
+                break;
+            default:
+                Helper.showShortToast(EntryActivity.this, "Invalid index");
+                break;
+        }
+    }
+    private void handleCommonImageSubmit() {
+        Log.d("EntryActivity", "handleCommonImageSubmit called");
+        if (iv_img.getVisibility() == View.GONE) {
+            Helper.showShortToast(EntryActivity.this, "Please capture image");
+            btn_image.requestFocus();
+            btn_image.requestFocusFromTouch();
+        } else {
+            if (Helper.isNetworkAvailable(EntryActivity.this)) {
+                new GetSection().execute("Lat^Long");
+            } else {
+                Helper.showShortToast(EntryActivity.this, "Please check your internet connection...");
+            }
+        }
+    }
+
+
+
+    private void handleMeterCanSubmit() {
+        Log.d("EntryActivity", "handleMeterCanSubmit called");
+        if (et_meter_can_no.getText().toString().length() == 0) {
+            et_meter_can_no.setError("Please enter can number", Helper.showIcon(R.drawable.error, EntryActivity.this));
+            et_meter_can_no.requestFocus();
+            et_meter_can_no.requestFocusFromTouch();
+        } else if (et_meter_can_no.getText().toString().length() < 9) {
+            et_meter_can_no.setError("CAN number should be 9 digits", Helper.showIcon(R.drawable.error, EntryActivity.this));
+            et_meter_can_no.requestFocus();
+            et_meter_can_no.requestFocusFromTouch();
+        } else {
+            if (Helper.isNetworkAvailable(EntryActivity.this)) {
+                new GetSection().execute("Lat^Long");
+            } else {
+                Helper.showShortToast(EntryActivity.this, "Please check your internet connection...");
+            }
+        }
+    }
+
+    private void handleBillingCanSubmit() {
+        Log.d("EntryActivity", "handleBillingCanSubmit called");
+        if (et_billing_can_no.getText().toString().length() == 0) {
+            et_billing_can_no.setError("Please enter can number", Helper.showIcon(R.drawable.error, EntryActivity.this));
+            et_billing_can_no.requestFocus();
+            et_billing_can_no.requestFocusFromTouch();
+        } else if (et_billing_can_no.getText().toString().length() < 9) {
+            et_billing_can_no.setError("CAN number should be 9 digits", Helper.showIcon(R.drawable.error, EntryActivity.this));
+            et_billing_can_no.requestFocus();
+            et_billing_can_no.requestFocusFromTouch();
+        } else {
+            if (Helper.isNetworkAvailable(EntryActivity.this)) {
+                new GetSection().execute("Lat^Long");
+            } else {
+                Helper.showShortToast(EntryActivity.this, "Please check your internet connection...");
+            }
+        }
+    }
+
 
     @Override
     public void onBackPressed() {
@@ -466,14 +380,35 @@ public class EntryActivity extends Activity implements OnClickListener {
 
     public class SubmitData extends AsyncTask<String, Void, String> {
 
+        ProgressDialog prog;
+        Context context;
+
+        public SubmitData(Context context) {
+            this.context = context;
+            prog = new ProgressDialog(context);
+            prog.setMessage("Loading...");
+            prog.setCancelable(false);
+        }
+
         @Override
         protected void onPreExecute() {
+            super.onPreExecute();
+            if (!prog.isShowing()) {
+                prog.show();
+            }
 
+            // Validate picCncoded
+            if (picCncoded == null || picCncoded.isEmpty()) {
+                Log.e("SubmitData", "Encoded image data is null or empty");
+                Toast.makeText(context, "Please capture the image.", Toast.LENGTH_SHORT).show();
+                cancel(true);  // Cancel the AsyncTask
+            } else {
+                Log.d("SubmitData", "Encoded image data length: " + picCncoded.length());
+            }
         }
 
         @Override
         protected String doInBackground(String... KEY) {
-
             String responsestring = "";
 
             String SOAP_ACTION = "";
@@ -483,310 +418,63 @@ public class EntryActivity extends Activity implements OnClickListener {
                 int TIMEOUT_WAIT_TO_CONNECT = 60 * 60 * 60 * 60 * 1000;
 
                 String linemanID = Helper.getMobileNumFromDB(
-                        EntryActivity.this, DBHelper.TABLE_VALVE,
+                        context, DBHelper.TABLE_VALVE,
                         DBHelper.VALVE_LINEMANID);
-                System.out.println("lineman id........." + linemanID);
+                Log.d("SubmitData", "Lineman ID: " + linemanID);
 
-                if (hit_index == 1) {// no chlorine
-                    Bitmap bp = Helper.getImage(EntryActivity.this, imageuri.getPath(), imageuri);
-                    String imageSTr = Helper.BitMapToString(bp);
-                    if (Build.VERSION.SDK_INT >= 24) {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-//                                imagetemp,
-                                imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-                    } else {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-                                imagetemp,
-//                            imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-                    }
+                if (hit_index == 1) { // no chlorine
+                    String imageSTr = picCncoded;
+//                            (Build.VERSION.SDK_INT >= 24) ? picCncoded : imagetemp;
+                    Log.d("ssssssssdd:",picCncoded);
+                    VALUE = new String[]{
+                            section_code,
+                            Helper.getMobileNumFromDB(context,
+                                    DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
+                            imageSTr,
+                            linemanID,
+                            gps_data.substring(0, gps_data.indexOf("-")),
+                            gps_data.substring(gps_data.indexOf("-") + 1),
+                            locationAddress};
                     SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
                             + Helper.SaveChlorinationLineManApp;
 
                     request = new SoapObject(Helper.NAMESPACE,
                             Helper.SaveChlorinationLineManApp);
-                    System.out.println("soap action......." + SOAP_ACTION);
-                } else if (hit_index == 2) {// valve leakage
-                    Bitmap bp = Helper.getImage(EntryActivity.this, imageuri.getPath(), imageuri);
-                    String imageSTr = Helper.BitMapToString(bp);
-                    if (Build.VERSION.SDK_INT >= 24) {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-//                                imagetemp,
-                                imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-                    } else {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-                                imagetemp,
-//                            imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-                    }
-
-                    SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
-                            + Helper.SaveValveLeakagesLineManApp;
-
-                    request = new SoapObject(Helper.NAMESPACE,
-                            Helper.SaveValveLeakagesLineManApp);
-                    System.out.println("soap action......." + SOAP_ACTION);
-                } else if (hit_index == 3) {// water leakage
-                    Bitmap bp = Helper.getImage(EntryActivity.this, imageuri.getPath(), imageuri);
-                    String imageSTr = Helper.BitMapToString(bp);
-                    if (Build.VERSION.SDK_INT >= 24) {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-//                                imagetemp,
-                                imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-                    } else {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-                                imagetemp,
-//                            imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-                    }
-                    SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
-                            + Helper.SavePipeLineLeakagesLineManApp;
-                    request = new SoapObject(Helper.NAMESPACE,
-                            Helper.SavePipeLineLeakagesLineManApp);
-                    System.out.println("soap action......." + SOAP_ACTION);
-                } else if (hit_index == 4) {// polluted water
-                    Bitmap bp = Helper.getImage(EntryActivity.this, imageuri.getPath(), imageuri);
-                    String imageSTr = Helper.BitMapToString(bp);
-
-                    if (Build.VERSION.SDK_INT >= 24) {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-//                                imagetemp,
-                                imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-
-                    } else {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-                                imagetemp,
-//                            imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-                    }
-
-                    SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
-                            + Helper.SavePollutedWaterLineManApp;
-
-                    request = new SoapObject(Helper.NAMESPACE,
-                            Helper.SavePollutedWaterLineManApp);
-                    System.out.println("soap action......." + SOAP_ACTION);
-                } else if (hit_index == 5) {// Sewerage Overflow
-                    Bitmap bp = Helper.getImage(EntryActivity.this, imageuri.getPath(), imageuri);
-                    String imageSTr = Helper.BitMapToString(bp);
-
-                    if (Build.VERSION.SDK_INT >= 24) {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-//                                imagetemp,
-                                imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-
-                    } else {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-                                imagetemp,
-//                            imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-
-                    }
-
-                    SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
-                            + Helper.SaveSewerageOverflowLineManApp;
-
-                    request = new SoapObject(Helper.NAMESPACE,
-                            Helper.SaveSewerageOverflowLineManApp);
-                    System.out.println("soap action......." + SOAP_ACTION);
-                } else if (hit_index == 6) {// Missing manhole
-                    Bitmap bp = Helper.getImage(EntryActivity.this, imageuri.getPath(), imageuri);
-                    String imageSTr = Helper.BitMapToString(bp);
-                    if (Build.VERSION.SDK_INT >= 24) {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-//                                imagetemp,
-                                imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-                    } else {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-                                imagetemp,
-//                            imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-
-                    }
-
-                    SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
-                            + Helper.SaveMissingManholeCoverLineManApp;
-
-                    request = new SoapObject(Helper.NAMESPACE,
-                            Helper.SaveMissingManholeCoverLineManApp);
-                    System.out.println("soap action......." + SOAP_ACTION);
-                } else if (hit_index == 7) {// Low water pressure
-                    VALUE = new String[]{
-                            et_billing_can_no.getText().toString(),
-                            section_code,
-                            Helper.getMobileNumFromDB(EntryActivity.this,
-                                    DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-                            linemanID};
-
-                    SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
-                            + Helper.SaveLowWaterPressureForLineManMobileApp;
-
-                    request = new SoapObject(Helper.NAMESPACE,
-                            Helper.SaveLowWaterPressureForLineManMobileApp);
-                    System.out.println("soap action......." + SOAP_ACTION);
-                } else if (hit_index == 8) {// Request meter
-                    VALUE = new String[]{
-                            et_meter_can_no.getText().toString(),
-                            section_code,
-                            Helper.getMobileNumFromDB(EntryActivity.this,
-                                    DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-                            linemanID,
-                    };
-
-                    SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
-                            + Helper.SaveRequestMeterLineManApp;
-
-                    request = new SoapObject(Helper.NAMESPACE,
-                            Helper.SaveRequestMeterLineManApp);
-                    System.out.println("soap action......." + SOAP_ACTION);
-                } else if (hit_index == 9) {// illegal water
-                    Bitmap bp = Helper.getImage(EntryActivity.this, imageuri.getPath(), imageuri);
-                    String imageSTr = Helper.BitMapToString(bp);
-                    if (Build.VERSION.SDK_INT >= 24) {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-//                                imagetemp,
-                                imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-                    } else {
-                        VALUE = new String[]{
-                                section_code,
-                                Helper.getMobileNumFromDB(EntryActivity.this,
-                                        DBHelper.TABLE_GENERAL, DBHelper.GEN_MOBILE),
-                                imagetemp,
-//                            imageSTr,
-                                linemanID,
-                                gps_data.substring(0, gps_data.indexOf("-")),
-                                gps_data.substring(gps_data.indexOf("-") + 1),
-                                locationAddress};
-                    }
-
-                    SOAP_ACTION = Helper.NAMESPACE + "ILineManAppCodeTreeUC/"
-                            + Helper.SaveIllegalConnectionInfo;
-
-                    request = new SoapObject(Helper.NAMESPACE,
-                            Helper.SaveIllegalConnectionInfo);
-                    System.out.println("soap action......." + SOAP_ACTION);
+                    Log.d("SubmitData", "SOAP Action: " + SOAP_ACTION);
                 }
+                // Add conditions for other hit_index values as per your application logic...
 
                 String KEY_VALUE[] = KEY[0].split("\\^");
-                if (KEY_VALUE != null)
+                if (KEY_VALUE != null) {
                     for (int i = 0; i < KEY_VALUE.length; i++) {
-                        System.out.println("key[" + i + "]....." + KEY_VALUE[i]
-                                + "..............VALVE[" + i + "]......."
-                                + VALUE[i]);
-
+                        System.out.println("ssssssssss");
+                        Log.d("SubmitData", "key[" + i + "]:" + KEY_VALUE[i] + " VALVE[" + i + "]:" + VALUE[i]);
                         request.addProperty(KEY_VALUE[i], VALUE[i]);
                     }
+                }
                 SoapSerializationEnvelope envelope = new SoapSerializationEnvelope(
                         SoapEnvelope.VER11);
-
                 envelope.dotNet = true;
                 envelope.setOutputSoapObject(request);
                 HttpTransportSE androidHttpTransport = new HttpTransportSE(
                         Helper.SUBMIT_URL, TIMEOUT_WAIT_TO_CONNECT);
                 androidHttpTransport.call(SOAP_ACTION, envelope);
 
-                // SoapObject response = (SoapObject)
-                // envelope.getResponse();
                 responsestring = envelope.getResponse().toString();
-                Log.e("SubmitData resp", responsestring);
+                Log.d("SubmitData", "Response======: " + responsestring);
 
             } catch (ConnectException e) {
-                e.printStackTrace();
-                responsestring = "$101-No Network Found. Please make sure your mobile internet enable";
+                Log.e("SubmitData", "ConnectException", e);
+                responsestring = "$101-No Network Found. Please make sure your mobile internet is enabled";
             } catch (XmlPullParserException e) {
-                e.printStackTrace();
-                responsestring = "$102-WebService Not Found. Please contact developer";
+                Log.e("SubmitData", "XmlPullParserException", e);
+                responsestring = "$102-WebService Not Found. Please contact the developer";
             } catch (SocketTimeoutException e) {
-                e.printStackTrace();
+                Log.e("SubmitData", "SocketTimeoutException", e);
                 responsestring = "$101-Your internet connection seems very poor. Please try again";
             } catch (Exception e) {
-                e.printStackTrace();
-                responsestring = "$102-Exception. Please contact developer";
+                Log.e("SubmitData", "Exception", e);
+                responsestring = "$102-Exception++++++. Please contact the developer";
             }
 
             return responsestring;
@@ -795,60 +483,46 @@ public class EntryActivity extends Activity implements OnClickListener {
         @Override
         protected void onPostExecute(String response) {
             try {
+                Log.d("SubmitData", "Post Execute=====: " + response);
+                if (prog != null && prog.isShowing()) {
+                    prog.dismiss();
+                }
 
-                System.out.println("in post...." + response);
-                if (response.trim().startsWith("$102")) {
-                    prog.dismiss();
-                    Toast.makeText(EntryActivity.this,
-                            response.substring(response.indexOf("-") + 1),
-                            Toast.LENGTH_SHORT).show();
-                } else if (response.trim().startsWith("$101")) {
-                    prog.dismiss();
-                    Toast.makeText(EntryActivity.this,
+                if (response.trim().startsWith("$102") || response.trim().startsWith("$101")) {
+                    Toast.makeText(context,
                             response.substring(response.indexOf("-") + 1),
                             Toast.LENGTH_SHORT).show();
                 } else {
-                    prog.dismiss();
                     if (hit_index == 1 || hit_index == 2 || hit_index == 3
                             || hit_index == 4 || hit_index == 5
                             || hit_index == 6 || hit_index == 7
                             || hit_index == 8 || hit_index == 9) {
                         if (response.trim().startsWith("0")) {
-//                            Toast.makeText(
-//                                    EntryActivity.this,
-//                                    "this is right",
-//                                    Toast.LENGTH_SHORT).show();
-//                            Log.d("hitinfdded", "onPostExecute: " + );
-                            Toast.makeText(
-                                    EntryActivity.this,
+                            Toast.makeText(context,
                                     response.substring(response.indexOf("|") + 1),
                                     Toast.LENGTH_SHORT).show();
-
                         } else if (response.trim().startsWith("1")) {
-                            Toast.makeText(
-                                    EntryActivity.this,
+                            Toast.makeText(context,
                                     response.substring(response.indexOf("|") + 1),
                                     Toast.LENGTH_SHORT).show();
-                            startActivity(new Intent(EntryActivity.this,
+                            context.startActivity(new Intent(context,
                                     SubMenuPage.class));
-                            finish();
+                            ((Activity) context).finish();
                         } else {
-                            Toast.makeText(
-                                    EntryActivity.this,
+                            Toast.makeText(context,
                                     response.substring(response.indexOf("|") + 1),
                                     Toast.LENGTH_SHORT).show();
                         }
                     }
-
                 }
-
             } catch (Exception e) {
-                e.printStackTrace();
-                prog.dismiss();
-                Toast.makeText(EntryActivity.this, "Please Try Again...",
+                Log.e("SubmitData", "Exception in onPostExecute", e);
+                if (prog != null && prog.isShowing()) {
+                    prog.dismiss();
+                }
+                Toast.makeText(context, "Please Try Again...",
                         Toast.LENGTH_SHORT).show();
             }
-
         }
     }
 
@@ -856,6 +530,7 @@ public class EntryActivity extends Activity implements OnClickListener {
 
         @Override
         protected void onPreExecute() {
+            super.onPreExecute();
             showProgressDialog();
         }
 
@@ -908,12 +583,14 @@ public class EntryActivity extends Activity implements OnClickListener {
                 responsestring = "$101-No Network Found. Please make sure your mobile internet enable";
             } catch (XmlPullParserException e) {
                 e.printStackTrace();
+                System.out.println("yyyyyyyy");
                 responsestring = "$102-WebService Not Found. Please contact developer";
             } catch (SocketTimeoutException e) {
                 e.printStackTrace();
                 responsestring = "$101-Your internet connection seems very poor. Please try again";
             } catch (Exception e) {
                 e.printStackTrace();
+                System.out.println("zzzzzzzzz");
                 responsestring = "$102-Exception. Please contact developer";
             }
 
@@ -924,7 +601,7 @@ public class EntryActivity extends Activity implements OnClickListener {
         protected void onPostExecute(String response) {
             try {
 
-                System.out.println("in post...." + response);
+                System.out.println("in post....sssssssssss" + response);
                 if (response.trim().startsWith("$102")) {
                     gps_data = "";
                     locationAddress = "";
@@ -996,6 +673,16 @@ public class EntryActivity extends Activity implements OnClickListener {
             showProgressDialog();
             locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
             mlocListener = new MyLocationListener();
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
+            }
             locationManager.requestLocationUpdates(
                     LocationManager.GPS_PROVIDER, 1000, 10, mlocListener);// network_provider,GPS_PROVIDER
         } catch (Exception ex) {
@@ -1005,22 +692,60 @@ public class EntryActivity extends Activity implements OnClickListener {
     private void turnGPSOn() {
         try {
 
-            String provider = Settings.Secure.getString(getContentResolver(),
-                    Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
-            if (!provider.contains("gps")) { // if gps is disabled
-                // final Intent poke = new Intent();
-                // poke.setClassName("com.android.settings",
-                // "com.android.settings.widget.SettingsAppWidgetProvider");
-                // poke.addCategory(Intent.CATEGORY_ALTERNATIVE);
-                // poke.setData(Uri.parse("3"));
-                // sendBroadcast(poke);
+//            String provider = Settings.Secure.getString(getContentResolver(),
+//                    Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
+//            if (!provider.contains("gps")) { // if gps is disabled
+//                // final Intent poke = new Intent();
+//                // poke.setClassName("com.android.settings",
+//                // "com.android.settings.widget.SettingsAppWidgetProvider");
+//                // poke.addCategory(Intent.CATEGORY_ALTERNATIVE);
+//                // poke.setData(Uri.parse("3"));
+//                // sendBroadcast(poke);
+//
+//                startActivity(new Intent(
+//                        android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+//            }
 
-                startActivity(new Intent(
-                        android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-            }
+
+            LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            boolean isGPSEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+
+//            if (!isGPSEnabled) {
+//                new AlertDialog.Builder(this)
+//                        .setMessage("GPS is not enabled. Do you want to go to settings menu?")
+//                        .setCancelable(false)
+//                        .setPositiveButton("Settings", new DialogInterface.OnClickListener() {
+//                            public void onClick(DialogInterface dialog, int id) {
+//                                Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+//                                startActivity(intent);
+//                            }
+//                        })
+//                        .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+//                            public void onClick(DialogInterface dialog, int id) {
+//                                dialog.cancel();
+//                            }
+//                        })
+//                        .create()
+//                        .show();
+//            }
+
         } catch (Exception ex) {
 
         }
+    }
+
+    private void openCamera() {
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            startActivityForResult(intent, Helper.CAMERA_CAPTURE_IMAGE_REQUEST_CODE);
+        } else {
+            Toast.makeText(this, "No camera app available", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void startGPSService() {
+        Intent serviceIntent = new Intent(this, ZipprGPSService.class);
+        ContextCompat.startForegroundService(this, serviceIntent);
     }
 
     private void turnGPSOff() {
@@ -1076,14 +801,51 @@ public class EntryActivity extends Activity implements OnClickListener {
 
     private void captureImage() {
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            // Create the File where the photo should go
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                // Error occurred while creating the File
+                ex.printStackTrace();
+            }
+            // Continue only if the File was successfully created
+            if (photoFile != null) {
+                Uri photoURI = FileProvider.getUriForFile(this,
+                        getPackageName() + ".provider",
+                        photoFile);
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                startActivityForResult(intent, 100);
+            }
+        }
+    }
 
-        imageuri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE);
 
-        intent.putExtra(MediaStore.EXTRA_OUTPUT, imageuri);
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(imageFileName, ".jpg", storageDir);
+        mCurrentPhotoPath = image.getAbsolutePath();
+        return image;
+    }
 
-        // start the image capture Intent
-        startActivityForResult(intent, Helper.CAMERA_CAPTURE_IMAGE_REQUEST_CODE);
 
+
+    private static File getOutputMediaFile() {
+        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES), "CameraDemo");
+        if (!mediaStorageDir.exists()) {
+            if (!mediaStorageDir.mkdirs()) {
+                return null;
+            }
+        }
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        return new File(mediaStorageDir.getPath() + File.separator +
+                "IMG_" + timeStamp + ".jpg");
     }
 
     public Uri getOutputMediaFileUri(int type) {
@@ -1166,48 +928,81 @@ public class EntryActivity extends Activity implements OnClickListener {
     }
 
     @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 100 && resultCode == RESULT_OK) {
+            iv_img.setVisibility(View.VISIBLE);
+            iv_img.setImageURI(Uri.parse(mCurrentPhotoPath)); // Update iv_img with the captured image URI
+            Toast.makeText(this, "Image Captured", Toast.LENGTH_SHORT).show();
+            hideProgressDialog(); // Hide the loader
+        } else {
+            Toast.makeText(this, "Image Capture Failed", Toast.LENGTH_SHORT).show();
+            hideProgressDialog(); // Hide the loader even if image capture fails
+        }
+    }
 
-        System.out.println("requestCode...." + requestCode);
-        if (requestCode == Helper.CAMERA_CAPTURE_IMAGE_REQUEST_CODE) {
-            if (resultCode == RESULT_OK) {
-                try {
-//                    Bitmap bp = Helper.getImage(imageuri.getPath());
-                    /*Bitmap bp = Helper.getImage(EntryActivity.this, imageuri.getPath(), imageuri);
-                    // just display image in imageview
-                    iv_img.setImageBitmap(bp);
-                    iv_img.setVisibility(View.VISIBLE);*/
-                    //	Helper.showLongToast(EntryActivity.this, "Address :"+locationAddress);
+    private void dealTakePhoto() {
 
 
-                    if (Build.VERSION.SDK_INT >= 24) {
-                        Bitmap bp = Helper.getImage(EntryActivity.this, imageuri.getPath(), imageuri);
-                        // just display image in imageview
-                        iv_img.setImageBitmap(bp);
-                        iv_img.setVisibility(View.VISIBLE);
-                    } else {
-                        File file = new File(imageuri.getPath());
-                        iv_img.setImageBitmap(decodeSampledBitmapFromFile(
-                                file.getAbsolutePath(), reqWidth, reqHeight));
-                        iv_img.setVisibility(View.VISIBLE);
-                        BitmapDrawable drawable = (BitmapDrawable) iv_img
-                                .getDrawable();
-                        Bitmap bitmap = drawable.getBitmap();
-                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
-                        byte[] b = baos.toByteArray();
-                        imagetemp = Base64.encodeToString(b, Base64.DEFAULT);
-                    }
-                } catch (Exception e) {
-                    iv_img.setVisibility(View.GONE);
-                    imageuri = null;
-                    e.printStackTrace();
-                }
-            } else {
-                imageuri = null;
+//        int targetW = iv_img.getWidth();
+//        int targetH = iv_img.getHeight();
+        int targetW = 413;
+        int targetH = 413;
+
+        // Get the dimensions of the bitmap
+        BitmapFactory.Options bmOptions = new BitmapFactory.Options();
+        bmOptions.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
+        //BitmapFactory.decodeFile(file, bmOptions);
+
+
+        int photoW = bmOptions.outWidth;
+        int photoH = bmOptions.outHeight;
+
+        // Determine how much to scale down the image
+        if (photoW != 0) {
+            int scaleFactor = Math.min(photoW / targetW, photoH / targetH);
+
+            // Decode the image file into a Bitmap sized to fill the View
+            bmOptions.inJustDecodeBounds = false;
+            bmOptions.inSampleSize = scaleFactor;
+            bmOptions.inPurgeable = true;
+
+            //Bitmap bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
+            Bitmap bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
+            //Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+            //Bitmap bitmap = ((BitmapDrawable) iv_img.getDrawable()).getBitmap();
+            String encodeImage = getStringImage(bitmap);
+            if (phototype == 0) {
+                picCncoded = encodeImage;
+            }
+            if (phototype == 0) {
+                iv_img.setImageBitmap(bitmap);
 
             }
+
+            Log.d("DEBUG", "dealTakePhoto: " + encodeImage + "end");
+            if (phototype == 0) {
+                iv_img.setImageBitmap(bitmap);
+            }
+
         }
+    }
+
+    public Drawable getDrawbleImage(int res) {
+
+        Drawable drawable = ResourcesCompat.getDrawable(getResources(), res, null);
+
+        return drawable;
+    }
+
+    public String getStringImage(Bitmap bmp) {
+        Bitmap bm = BitmapFactory.decodeFile(mCurrentPhotoPath);
+        ByteArrayOutputStream bao = new ByteArrayOutputStream();
+        bm.compress(Bitmap.CompressFormat.JPEG, 60, bao);
+        byte[] ba = bao.toByteArray();
+
+        return Base64.encodeToString(ba, Base64.DEFAULT);
     }
 
     private class GeocoderHandler extends Handler {
@@ -1219,162 +1014,106 @@ public class EntryActivity extends Activity implements OnClickListener {
                 case 1:
                     Bundle bundle = message.getData();
                     locationAddress = bundle.getString("address");
-
                     break;
                 default:
                     locationAddress = "";
             }
-            // if (locationAddress.length() > 0) {
+
             if (locationAddress.trim().equalsIgnoreCase("1")) {
                 locationAddress = "";
             }
+
             if (index.trim().equalsIgnoreCase("0")) {
-
-                if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                    hit_index = 1;
-                    new SubmitData()
-                            .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^addressLocation");
-                } else {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please check your internet connection...");
-                }
-
+                handleNetworkAvailability(1);
             } else if (index.trim().equalsIgnoreCase("1")) {
-
-                if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                    hit_index = 2;
-                    new SubmitData()
-                            .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^address");
-                } else {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please check your internet connection...");
-                }
-
+                handleNetworkAvailability(2);
             } else if (index.trim().equalsIgnoreCase("2")) {
-
-                if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                    hit_index = 3;
-                    new SubmitData()
-                            .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^address");
-                } else {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please check your internet connection...");
-                }
-
-
+                handleNetworkAvailability(3);
             } else if (index.trim().equalsIgnoreCase("3")) {
-
-                if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                    hit_index = 4;
-                    new SubmitData()
-                            .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^address");
-                } else {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please check your internet connection...");
-                }
-
+                handleNetworkAvailability(4);
             } else if (index.trim().equalsIgnoreCase("4")) {
-
-                if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                    hit_index = 5;
-                    new SubmitData()
-                            .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^address");
-                } else {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please check your internet connection...");
-                }
-
+                handleNetworkAvailability(5);
             } else if (index.trim().equalsIgnoreCase("5")) {
-
-                if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                    hit_index = 6;
-                    new SubmitData()
-                            .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^address");
-                } else {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please check your internet connection...");
-                }
-
+                handleNetworkAvailability(6);
             } else if (index.trim().equalsIgnoreCase("6")) {
-
-                if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                    hit_index = 7;
-                    new SubmitData()
-                            .execute("can^sectionCode^mobileNo^lineManID");
-                } else {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please check your internet connection...");
-                }
-
+                handleNetworkAvailability(7);
             } else if (index.trim().equalsIgnoreCase("7")) {
-
-                if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                    hit_index = 8;
-                    new SubmitData()
-                            .execute("can^sectionCode^mobileNo^lineManID");
-                } else {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please check your internet connection...");
-                }
-
+                handleNetworkAvailability(8);
             } else if (index.trim().equalsIgnoreCase("8")) {
-
-
-                if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                    hit_index = 9;
-                    new SubmitData()
-                            .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^address");
-                } else {
-                    Helper.showShortToast(EntryActivity.this,
-                            "Please check your internet connection...");
-                }
-
+                handleNetworkAvailability(9);
             }
+        }
 
-
-            // }
+        private void handleNetworkAvailability(int hitIndex) {
+            if (Helper.isNetworkAvailable(EntryActivity.this)) {
+                hit_index = hitIndex;
+                new SubmitData(EntryActivity.this)
+                        .execute("sectionCode^mobileNo^image^lineManID^latitute^longitude^addressLocation");
+            } else {
+                Helper.showShortToast(EntryActivity.this,
+                        "Please check your internet connection...");
+            }
         }
     }
 
     @Override
-    public void onPause() {
-        unregisterReceiver(broadcastReceiver);
+    protected void onPause() {
         super.onPause();
+        try {
+            if (broadcastReceiver != null) {
+                unregisterReceiver(broadcastReceiver);
+                Log.d("EntryActivity", "BroadcastReceiver unregistered");
+            }
+        } catch (Exception e) {
+            Log.e("EntryActivity", "Error unregistering broadcastReceiver", e);
+        }
     }
 
     @Override
-    public void onResume() {
-        // TODO Auto-generated method stub
+    protected void onResume() {
         super.onResume();
-        registerReceiver(broadcastReceiver, mIntentFilter);
+        try {
+            if (broadcastReceiver != null) {
+                registerReceiver(broadcastReceiver, mIntentFilter, Context.RECEIVER_NOT_EXPORTED);
+                Log.d("EntryActivity", "BroadcastReceiver registered");
+            }
+        } catch (Exception e) {
+            Log.e("EntryActivity", "Error registering broadcastReceiver", e);
+        }
     }
 
-    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+
+    private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (action.trim().equalsIgnoreCase(ZipprGPSService.BROADCAST_ACTION)) {
-                Bundle b = intent.getExtras();
-                String lat = b.getString("Lat");
-                String lon = b.getString("Lon");
-                gps_data = lat + "-" + lon;
-                stopService(new Intent(EntryActivity.this, ZipprGPSService.class));
-                if (Helper.isNetworkAvailable(EntryActivity.this) == true) {
-                    prog.dismiss();
-                    captureImage();
-                } else {
-                    gps_data = "";
-                    Helper.showShortToast(EntryActivity.this,
-                            "please check your internet connection...");
+            try {
+                String action = intent.getAction();
+                if (action != null && action.trim().equalsIgnoreCase(BROADCAST_ACTION)) {
+                    Bundle b = intent.getExtras();
+                    if (b != null) {
+                        String lat = b.getString("Lat");
+                        String lon = b.getString("Lon");
+                        String gps_data = lat + "-" + lon;
+                        stopService(new Intent(EntryActivity.this, ZipprGPSService.class));
+                        if (Helper.isNetworkAvailable(EntryActivity.this)) {
+                            // Assuming 'prog' is a ProgressDialog instance
+                            prog.dismiss();
+                            captureImage();
+                        } else {
+                            gps_data = "";
+                            Helper.showShortToast(EntryActivity.this, "Please check your internet connection...");
+                        }
+                        Log.d("EntryActivity", "Latitude: " + lat + ", Longitude: " + lon);
+                    } else {
+                        Log.e("EntryActivity", "Bundle is null in broadcast receiver");
+                    }
                 }
-                System.out.println("lat........" + lat);
-                System.out.println("lon........" + lon);
-
-
+            } catch (Exception e) {
+                Log.e("EntryActivity", "Error in onReceive", e);
             }
         }
-
     };
+
 
     private boolean isMyServiceRunning(Class<?> serviceClass) {
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
@@ -1392,58 +1131,78 @@ public class EntryActivity extends Activity implements OnClickListener {
 
 
     /*Method used to check the runtime permissions for location,camera and storage*/
+//    private boolean checkPermission() {
+//        int result = ContextCompat.checkSelfPermission(getApplicationContext(), ACCESS_FINE_LOCATION);
+//        int result1 = ContextCompat.checkSelfPermission(getApplicationContext(), CAMERA);
+//        int result2 = ContextCompat.checkSelfPermission(getApplicationContext(), READ_EXTERNAL_STORAGE);
+//        int result3 = ContextCompat.checkSelfPermission(getApplicationContext(), WRITE_EXTERNAL_STORAGE);
+//        return result == PackageManager.PERMISSION_GRANTED && result1 == PackageManager.PERMISSION_GRANTED && result2 == PackageManager.PERMISSION_GRANTED && result3 == PackageManager.PERMISSION_GRANTED;
+//    }
+
     private boolean checkPermission() {
-        int result = ContextCompat.checkSelfPermission(getApplicationContext(), ACCESS_FINE_LOCATION);
-        int result1 = ContextCompat.checkSelfPermission(getApplicationContext(), CAMERA);
-        int result2 = ContextCompat.checkSelfPermission(getApplicationContext(), READ_EXTERNAL_STORAGE);
-        int result3 = ContextCompat.checkSelfPermission(getApplicationContext(), WRITE_EXTERNAL_STORAGE);
-        return result == PackageManager.PERMISSION_GRANTED && result1 == PackageManager.PERMISSION_GRANTED && result2 == PackageManager.PERMISSION_GRANTED && result3 == PackageManager.PERMISSION_GRANTED;
-    }
-
-    /*Requesting for the required permissions*/
-    private void requestPermission() {
-        ActivityCompat.requestPermissions(this, new String[]{ACCESS_FINE_LOCATION, CAMERA, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
-        switch (requestCode) {
-            case PERMISSION_REQUEST_CODE:
-                if (grantResults.length > 0) {
-                    boolean locationAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED;
-                    boolean cameraAccepted = grantResults[1] == PackageManager.PERMISSION_GRANTED;
-                    boolean storageAccepted = grantResults[2] == PackageManager.PERMISSION_GRANTED;
-                    boolean writestorageAccepted = grantResults[3] == PackageManager.PERMISSION_GRANTED;
-                    if (locationAccepted && cameraAccepted && storageAccepted && writestorageAccepted) {
-                        turnGPSOn();
-                        showProgressDialog();
-                        startService(new Intent(this, ZipprGPSService.class));
-                    } else {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            if (shouldShowRequestPermissionRationale(ACCESS_FINE_LOCATION)) {
-                                showMessageOKCancel("You need to allow access the permissions",
-                                        new DialogInterface.OnClickListener() {
-                                            @Override
-                                            public void onClick(DialogInterface dialog, int which) {
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                                    requestPermissions(new String[]{ACCESS_FINE_LOCATION, CAMERA, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE},
-                                                            PERMISSION_REQUEST_CODE);
-                                                }
-                                            }
-                                        });
-                                return;
-                            }
-                        }
-
-                    }
-                }
-
-
-                break;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
         }
     }
 
+    /*Requesting for the required permissions*/
+//    private void requestPermission() {
+//        ActivityCompat.requestPermissions(this, new String[]{ACCESS_FINE_LOCATION, CAMERA, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
+//    }
 
+    private void requestPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{
+                            Manifest.permission.CAMERA,
+                            Manifest.permission.READ_MEDIA_IMAGES,
+                            Manifest.permission.READ_MEDIA_VIDEO,
+                            Manifest.permission.READ_MEDIA_AUDIO
+                    },
+                    PERMISSION_REQUEST_CODE);
+        } else {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{
+                            Manifest.permission.CAMERA,
+                            Manifest.permission.READ_EXTERNAL_STORAGE,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    },
+                    PERMISSION_REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            boolean allGranted = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+            if (allGranted) {
+                handleImageClick();
+            } else {
+                Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show();
+                hideProgressDialog(); // Hide the loader if permission is denied
+            }
+        }
+    }
+
+    private void hideProgressDialog() {
+        if (progressDialog != null && progressDialog.isShowing()) {
+            progressDialog.dismiss();
+        }
+    }
     /*showing alert message to accept the permissions*/
     private void showMessageOKCancel(String message, DialogInterface.OnClickListener okListener) {
         new AlertDialog.Builder(EntryActivity.this)
