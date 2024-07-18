@@ -475,6 +475,10 @@ public class EntryActivity extends Activity implements OnClickListener {
             } catch (Exception e) {
                 Log.e("SubmitData", "Exception", e);
                 responsestring = "$102-Exception++++++. Please contact the developer";
+            }finally {
+                if (prog != null && prog.isShowing()) {
+                    prog.dismiss();
+                }
             }
 
             return responsestring;
@@ -932,8 +936,9 @@ public class EntryActivity extends Activity implements OnClickListener {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 100 && resultCode == RESULT_OK) {
             iv_img.setVisibility(View.VISIBLE);
-            iv_img.setImageURI(Uri.parse(mCurrentPhotoPath)); // Update iv_img with the captured image URI
-            Toast.makeText(this, "Image Captured", Toast.LENGTH_SHORT).show();
+            dealTakePhoto();
+//            iv_img.setImageURI(Uri.parse(mCurrentPhotoPath)); // Update iv_img with the captured image URI
+            Toast.makeText(this, "Image Cap;tured", Toast.LENGTH_SHORT).show();
             hideProgressDialog(); // Hide the loader
         } else {
             Toast.makeText(this, "Image Capture Failed", Toast.LENGTH_SHORT).show();
@@ -1097,7 +1102,9 @@ public class EntryActivity extends Activity implements OnClickListener {
                         stopService(new Intent(EntryActivity.this, ZipprGPSService.class));
                         if (Helper.isNetworkAvailable(EntryActivity.this)) {
                             // Assuming 'prog' is a ProgressDialog instance
-                            prog.dismiss();
+                            if (prog != null && prog.isShowing()) {
+                                prog.dismiss();
+                            }
                             captureImage();
                         } else {
                             gps_data = "";
